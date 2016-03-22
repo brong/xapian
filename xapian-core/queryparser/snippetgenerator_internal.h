@@ -21,7 +21,6 @@
 #ifndef XAPIAN_INCLUDED_SNIPPETGENERATOR_INTERNAL_H
 #define XAPIAN_INCLUDED_SNIPPETGENERATOR_INTERNAL_H
 
-#include <xapian/base.h>
 #include <xapian/snippetgenerator.h>
 #include <xapian/queryparser.h>
 #include <xapian/stem.h>
@@ -30,7 +29,7 @@
 
 namespace Xapian {
 
-class SnippetGenerator::Internal : public Xapian::Internal::RefCntBase {
+class SnippetGenerator::Internal : public Xapian::Internal::intrusive_base {
     friend class SnippetGenerator;
     Stem stemmer;
     std::string pre_match;

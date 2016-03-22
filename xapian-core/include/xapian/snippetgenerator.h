@@ -21,9 +21,9 @@
 #ifndef XAPIAN_INCLUDED_SNIPPETGENERATOR_H
 #define XAPIAN_INCLUDED_SNIPPETGENERATOR_H
 
-#include <xapian/base.h>
 #include <xapian/types.h>
 #include <xapian/unicode.h>
+#include <xapian/intrusive_ptr.h>
 #include <xapian/visibility.h>
 
 #include <string>
@@ -44,7 +44,7 @@ class XAPIAN_VISIBILITY_DEFAULT SnippetGenerator {
     /// @private @internal Class representing the SnippetGenerator internals.
     class Internal;
     /// @private @internal Reference counted internals.
-    Xapian::Internal::RefCntPtr<Internal> internal;
+    Xapian::Internal::intrusive_ptr<Internal> internal;
 
     /// Copy constructor.
     SnippetGenerator(const SnippetGenerator & o);
