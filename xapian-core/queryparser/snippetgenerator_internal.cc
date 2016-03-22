@@ -248,7 +248,9 @@ SnippetGenerator::Internal::accept_text(Utf8Iterator itor)
 	}
 
 	while (true) {
-	    if (cjk_ngram && CJK::codepoint_is_cjk(*itor)) {
+	    if (cjk_ngram &&
+		CJK::codepoint_is_cjk(*itor) &&
+		Unicode::is_wordchar(*itor)) {
 		const string & cjk = CJK::get_cjk(itor);
 		for (CJKTokenIterator tk(cjk); tk != CJKTokenIterator(); ++tk) {
 		    const string & cjk_token = *tk;
