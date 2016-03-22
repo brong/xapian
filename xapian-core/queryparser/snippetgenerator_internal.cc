@@ -35,15 +35,6 @@ using namespace std;
 
 namespace Xapian {
 
-void
-SnippetGenerator::Internal::add_match(const std::string & term)
-{
-    string stem = Unicode::tolower(term);
-    if (stemmer.internal.get())
-	stem = stemmer(stem);
-    matches.insert(stem);
-}
-
 // 'ngram_len' is the length in *characters* (not octets) of an N-gram,
 // or 0 if 'term' is a complete term.  We use this to detect when we
 // are being passed N-grams.  We also rely on the behaviour of the
@@ -370,6 +361,48 @@ endofterm:
     }
 }
 
+void
+SnippetGenerator::Internal::add_match(const std::string & str)
+{
+    unsigned ch;
+    Utf8Iterator itor(str);
+    while (true) {
+
+	// skip non-word characters
+	while (true) {
+	    if (itor == Utf8Iterator()) return;
+	    ch = check_wordchar(*itor);
+	    ++itor;
+	    if (ch) break;
+	}
+
+	string term;
+	Unicode::append_utf8(term, ch);
+
+#if 0
+	// treat CJK characters as 1-character terms
+	// this is probably wrong.
+	if (CJK::codepoint_is_cjk(ch)) {
+	    matches.insert(term);
+	    continue;
+	}
+#endif
+
+	// collect word characters into a term
+	while (true) {
+	    if (itor == Utf8Iterator()) break;
+	    ch = check_wordchar(*itor);
+	    if (!ch) break;
+	    Unicode::append_utf8(term, ch);
+	    ++itor;
+	}
+
+	string stem = Unicode::tolower(term);
+	if (stemmer.internal.get())
+	    stem = stemmer(stem);
+	matches.insert(stem);
+    }
+}
 
 void
 SnippetGenerator::Internal::reset()

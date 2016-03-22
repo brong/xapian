@@ -1035,6 +1035,38 @@ static bool test_sg_stem()
     return true;
 }
 
+static bool test_sg_match_punctuation()
+{
+    Xapian::SnippetGenerator snipgen;
+    snipgen.set_context_length(3);
+    Xapian::Stem stemmer("en");
+    snipgen.set_stemmer(stemmer);
+
+    std::string text("alpha beta gamma delta put-a-bird-on-it epsilon zeta eta theta");
+
+    // a simple word search term should be matched
+    snipgen.reset();
+    snipgen.add_match("bird");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "delta put-a-<b>bird</b>-on-it epsilon");
+
+    // adding a search term including punctuation is like
+    // adding multiple search terms
+    snipgen.reset();
+    snipgen.add_match("a-bird");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "gamma delta put-<b>a</b>-<b>bird</b>-on-it epsilon");
+
+    snipgen.reset();
+    snipgen.add_match("put-a-bird-on-it");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "beta gamma delta "
+				       "<b>put</b>-<b>a</b>-<b>bird</b>-<b>on</b>-<b>it</b> "
+				       "epsilon zeta eta");
+
+    return true;
+}
+
 /// Test cases for the TermGenerator.
 static const test_desc tests[] = {
     TESTCASE(termgen1),
@@ -1046,6 +1078,7 @@ static const test_desc tests[] = {
     TESTCASE(sg_stem),
     TESTCASE(sg_cjk_punctuation),
     TESTCASE(sg_cjk_ngrams),
+    TESTCASE(sg_match_punctuation),
     END_OF_TESTCASES
 };
 
