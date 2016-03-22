@@ -40,16 +40,19 @@ class SnippetGenerator::Internal : public Xapian::Internal::RefCntBase {
     std::tr1::unordered_set<std::string> matches;
     unsigned nwhitespace;
     std::string leading_nonword;
+    std::string pending_1gram;
+    unsigned ignore_1grams;
 
     termcount horizon;
     termcount lastpos;
+    termcount xpos;	// doesn't count N>1 N-grams
     std::deque<std::string> context;
     std::string result;
 
     termcount termpos;
 
     void push_context(const std::string & term);
-    void accept_term(const std::string & term, termcount pos);
+    void accept_term(const std::string & term, termcount pos, int ngram_len);
     void accept_nonword_char(unsigned ch, termcount pos);
 
   public:

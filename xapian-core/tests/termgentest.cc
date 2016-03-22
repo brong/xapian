@@ -958,6 +958,51 @@ static bool test_sg_first_nonword()
     return true;
 }
 
+static bool test_sg_cjk_punctuation()
+{
+    Xapian::SnippetGenerator snipgen;
+    snipgen.set_context_length(3);
+    Xapian::Stem stemmer("en");
+    snipgen.set_stemmer(stemmer);
+
+    std::string text("申込み殺到！Nexus7が0円！WiMAX月額3,770円使い放題とセットでお得");
+
+    // the text contains U+FF01 FULLWIDTH EXCLAMATION MARK which
+    // is both a CJK character and a non-word character; it should
+    // be handled as non-word text and appear in both the before
+    // and after contexts
+    snipgen.reset();
+    snipgen.add_match("Nexus7");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "み殺到！<b>Nexus7</b>が0円！");
+
+    return true;
+}
+
+static bool test_sg_cjk_ngrams()
+{
+    Xapian::SnippetGenerator snipgen;
+    snipgen.set_context_length(3);
+    Xapian::Stem stemmer("en");
+    snipgen.set_stemmer(stemmer);
+
+    std::string text("申込み殺到！Nexus7が0円！WiMAX月額3,770円使い放題とセットでお得");
+
+    // a one-character CJK search term should be matched
+    snipgen.reset();
+    snipgen.add_match("放");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "円使い<b>放</b>題とセ");
+
+    // a two-character CJK search term should be matched
+    snipgen.reset();
+    snipgen.add_match("放題");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "円使い<b>放題</b>とセッ");
+
+    return true;
+}
+
 static bool test_sg_stem()
 {
     Xapian::SnippetGenerator snipgen;
@@ -999,6 +1044,8 @@ static const test_desc tests[] = {
     TESTCASE(snipgen1),
     TESTCASE(sg_first_nonword),
     TESTCASE(sg_stem),
+    TESTCASE(sg_cjk_punctuation),
+    TESTCASE(sg_cjk_ngrams),
     END_OF_TESTCASES
 };
 

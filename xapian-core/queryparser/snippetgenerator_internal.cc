@@ -44,8 +44,16 @@ SnippetGenerator::Internal::add_match(const std::string & term)
     matches.insert(stem);
 }
 
+// 'ngram_len' is the length in *characters* (not octets) of an N-gram,
+// or 0 if 'term' is a complete term.  We use this to detect when we
+// are being passed N-grams.  We also rely on the behaviour of the
+// CJKTokenizer class which returns N-grams in increasing length order,
+// so that when ngram_len==1 we know the N-gram base position just
+// incremented.
+
 void
-SnippetGenerator::Internal::accept_term(const string & term, termcount pos)
+SnippetGenerator::Internal::accept_term(const string & term,
+					termcount pos, int ngram_len)
 {
     string stem = Unicode::tolower(term);
     if (stemmer.internal.get())
@@ -55,13 +63,17 @@ SnippetGenerator::Internal::accept_term(const string & term, termcount pos)
     if (pos > (lastpos+2)) {
 	context.clear();
 	leading_nonword = "";
+	pending_1gram = "";
+	ignore_1grams = 0;
     }
+    if (ngram_len <= 1)
+	xpos += (pos - lastpos);
     lastpos = pos;
     nwhitespace = 0;
 
     if (matches.find(stem) != matches.end()) {
 	// found a match
-	if (pos > horizon + context.size() + 1 && result != "") {
+	if (xpos > horizon + context.size() + 1 && result != "") {
 	    // there was a gap from the end of the context after
 	    // the previous snippet, so start a new snippet
 	    result += inter_snippet;
@@ -69,6 +81,11 @@ SnippetGenerator::Internal::accept_term(const string & term, termcount pos)
 	    result += leading_nonword;
 	}
 	leading_nonword = "";
+
+	if (ngram_len == 1 && pending_1gram != "") {
+	    push_context(pending_1gram);
+	    pending_1gram = "";
+	}
 
 	// flush the before-context
 	while (!context.empty()) {
@@ -81,15 +98,39 @@ SnippetGenerator::Internal::accept_term(const string & term, termcount pos)
 	result += term;
 	result += post_match;
 
+	// some following 1-grams may be included in the
+	// match text, so don't add them to context.
+	ignore_1grams = (ngram_len > 1 ? ngram_len-1 : 0);
+
 	// set the horizon to mark the end of the after-context
-	horizon = pos + context_length;
-    } else if (pos <= horizon) {
+	horizon = xpos + context_length + ignore_1grams;
+    } else if (xpos <= horizon) {
 	// the after-context for a match
-	result += term;
+	if (ngram_len == 0) {
+	    result += term;
+	} else if (ngram_len == 1) {
+	    if (ignore_1grams)
+		ignore_1grams--;
+	    else
+		result += term;
+	}
+	// don't keep N>1 N-grams in context, they're redundant
     } else {
 	// not explicitly in a context, but remember the
 	// term in the context queue for later
-	push_context(term);
+	if (ngram_len == 0) {
+	    push_context(term);
+	} else if (ngram_len == 1) {
+	    if (pending_1gram != "") {
+		push_context(pending_1gram);
+		pending_1gram = "";
+	    }
+	    if (ignore_1grams)
+		ignore_1grams--;
+	    else
+		pending_1gram = term;
+	}
+	// don't keep N>1 N-grams in context, they're redundant
     }
 }
 
@@ -111,6 +152,7 @@ SnippetGenerator::Internal::accept_nonword_char(unsigned ch, termcount pos)
 	Unicode::append_utf8(leading_nonword, ch);
 	return;
     }
+    xpos += (pos - lastpos);
 
     if (Unicode::is_whitespace(ch)) {
 	if (++nwhitespace > 1)
@@ -120,13 +162,19 @@ SnippetGenerator::Internal::accept_nonword_char(unsigned ch, termcount pos)
 	nwhitespace = 0;
     }
 
+    if (pending_1gram != "") {
+	push_context(pending_1gram);
+	pending_1gram = "";
+    }
+    ignore_1grams = 0;
+
     if (!pos) {
 	// non-word characters before the first word
 	Unicode::append_utf8(leading_nonword, ch);
     }
-    else if (pos <= horizon) {
+    else if (xpos <= horizon) {
 	// the last word of the after-context of a snippet
-	if (ch == ' ' && pos == horizon) {
+	if (ch == ' ' && xpos == horizon) {
 	    // after-context ends on first whitespace
 	    // after the last word in the horizon,
 	    // ...unless another one abuts it, but we
@@ -261,7 +309,7 @@ SnippetGenerator::Internal::accept_text(Utf8Iterator itor)
 		    if (cjk_token.size() > MAX_PROB_TERM_LENGTH) continue;
 
 		    // Add unstemmed form positional information.
-		    accept_term(cjk_token, ++termpos);
+		    accept_term(cjk_token, ++termpos, tk.get_length());
 		}
 		while (true) {
 		    if (itor == Utf8Iterator()) return;
@@ -318,7 +366,7 @@ SnippetGenerator::Internal::accept_text(Utf8Iterator itor)
 
 endofterm:
 	if (term.size() > MAX_PROB_TERM_LENGTH) continue;
-	accept_term(term, ++termpos);
+	accept_term(term, ++termpos, 0);
     }
 }
 
@@ -329,11 +377,14 @@ SnippetGenerator::Internal::reset()
     result = "";
     horizon = 0;
     lastpos = 0;
+    xpos = 0;
     nwhitespace = 0;
     context.clear();
     matches.clear();
     termpos = 0;
     leading_nonword = "";
+    pending_1gram = "";
+    ignore_1grams = 0;
 }
 
 }
