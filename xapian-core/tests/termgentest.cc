@@ -1,4 +1,4 @@
-/* termgentest.cc: Tests of Xapian::TermGenerator
+/* termgentest.cc: Tests of Xapian::TermGenerator & SnippetGenerator
  *
  * Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2015 Olly Betts
  * Copyright (C) 2007 Lemur Consulting Ltd
@@ -842,12 +842,128 @@ static bool test_tg_max_word_length1()
     return true;
 }
 
+static bool test_snipgen1()
+{
+    Xapian::SnippetGenerator snipgen;
+    snipgen.set_context_length(3);
+
+    std::string text("Readymade photo booth (typeWriter), occupy "
+		     "DreamCatcher Polaroid four loko butcher "
+		     "gentrify. Williamsburg, banh mi gastropub.");
+
+    snipgen.reset();
+    snipgen.add_match("readymade");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "<b>Readymade</b> "
+				       "photo booth (typeWriter),");
+
+    snipgen.reset();
+    snipgen.add_match("Readymade");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "<b>Readymade</b> "
+				       "photo booth (typeWriter),");
+
+    snipgen.reset();
+    snipgen.add_match("reAdyMaDe");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "<b>Readymade</b> "
+				       "photo booth (typeWriter),");
+
+    snipgen.reset();
+    snipgen.add_match("photo");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "Readymade "
+				       "<b>photo</b> "
+				       "booth (typeWriter), occupy");
+
+    snipgen.reset();
+    snipgen.add_match("occupy");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "photo booth (typeWriter), "
+				       "<b>occupy</b> "
+				       "DreamCatcher Polaroid four");
+
+    snipgen.reset();
+    snipgen.add_match("gastropub");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "Williamsburg, banh mi "
+				       "<b>gastropub</b>.");
+
+    snipgen.reset();
+    snipgen.add_match("dreamcatcher");
+    snipgen.add_match("butcher");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "booth (typeWriter), occupy "
+				       "<b>DreamCatcher</b> "
+				       "Polaroid four loko "
+				       "<b>butcher</b> "
+				       "gentrify. Williamsburg, banh");
+
+    snipgen.reset();
+    snipgen.add_match("occupy");
+    snipgen.add_match("williamsburg");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "photo booth (typeWriter), "
+				       "<b>occupy</b> "
+				       "DreamCatcher Polaroid four loko butcher gentrify. "
+				       "<b>Williamsburg</b>, "
+				       "banh mi gastropub.");
+
+    snipgen.reset();
+    snipgen.add_match("occupy");
+    snipgen.add_match("banh");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "photo booth (typeWriter), "
+				       "<b>occupy</b> "
+				       "DreamCatcher Polaroid four"
+				       "..."
+				       "butcher gentrify. Williamsburg, "
+				       "<b>banh</b> "
+				       "mi gastropub.");
+
+    return true;
+}
+
+static bool test_sg_stem()
+{
+    Xapian::SnippetGenerator snipgen;
+    snipgen.set_context_length(3);
+    Xapian::Stem stemmer("en");
+    snipgen.set_stemmer(stemmer);
+
+    std::string text("She sells sea shells by the sea shore");
+
+    snipgen.reset();
+    snipgen.add_match("shells");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "She sells sea <b>shells</b> by the sea");
+
+    snipgen.reset();
+    snipgen.add_match("shell");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "She sells sea <b>shells</b> by the sea");
+
+    snipgen.reset();
+    snipgen.add_match("shelled");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "She sells sea <b>shells</b> by the sea");
+
+    snipgen.reset();
+    snipgen.add_match("shelling");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "She sells sea <b>shells</b> by the sea");
+
+    return true;
+}
+
 /// Test cases for the TermGenerator.
 static const test_desc tests[] = {
     TESTCASE(termgen1),
     TESTCASE(tg_spell1),
     TESTCASE(tg_spell2),
     TESTCASE(tg_max_word_length1),
+    TESTCASE(snipgen1),
+    TESTCASE(sg_stem),
     END_OF_TESTCASES
 };
 

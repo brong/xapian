@@ -8,7 +8,8 @@ noinst_HEADERS +=\
 	queryparser/cjk-tokenizer.h\
 	queryparser/queryparser_internal.h\
 	queryparser/queryparser_token.h\
-	queryparser/termgenerator_internal.h
+	queryparser/termgenerator_internal.h\
+	queryparser/snippetgenerator_internal.h
 
 lemon_built_sources =\
 	queryparser/queryparser_internal.cc\
@@ -61,4 +62,6 @@ lib_src +=\
 	queryparser/queryparser.cc\
 	queryparser/queryparser_internal.cc\
 	queryparser/termgenerator.cc\
-	queryparser/termgenerator_internal.cc
+	queryparser/termgenerator_internal.cc\
+	queryparser/snippetgenerator.cc\
+	queryparser/snippetgenerator_internal.cc
