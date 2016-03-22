@@ -92,8 +92,10 @@ SnippetGenerator::Internal::accept_term(const string & term, termcount pos)
 	// not explicitly in a context, but remember the
 	// term in the context queue for later
 	context.push(term);
-	while (context.size() > context_length)
+	while (context.size() > context_length) {
 	    context.pop();
+	    leading_nonword = "";
+	}
 	// this order handles the context_length=0 case gracefully
     }
 }
@@ -114,7 +116,11 @@ SnippetGenerator::Internal::accept_nonword_char(unsigned ch, termcount pos)
 	nwhitespace = 0;
     }
 
-    if (pos <= horizon) {
+    if (!pos) {
+	// non-word characters before the first word
+	Unicode::append_utf8(leading_nonword, ch);
+    }
+    else if (pos <= horizon) {
 	// the last word of the after-context of a snippet
 	if (ch == ' ' && pos == horizon) {
 	    // after-context ends on first whitespace

@@ -924,6 +924,40 @@ static bool test_snipgen1()
     return true;
 }
 
+static bool test_sg_first_nonword()
+{
+    Xapian::SnippetGenerator snipgen;
+    snipgen.set_context_length(3);
+
+    // first character is a non-word character - this
+    // exercises some obscure code paths
+    std::string text("[Brooklyn] Re: locavore cosby sweater");
+
+    // no match at all
+    snipgen.reset();
+    snipgen.add_match("readymade");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "");
+
+    // matched first word
+    snipgen.reset();
+    snipgen.add_match("brooklyn");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "["
+				       "<b>Brooklyn</b>"
+				       "] Re: locavore cosby");
+
+    // matched second word
+    snipgen.reset();
+    snipgen.add_match("re");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "[Brooklyn] "
+				       "<b>Re</b>: "
+				       "locavore cosby sweater");
+
+    return true;
+}
+
 static bool test_sg_stem()
 {
     Xapian::SnippetGenerator snipgen;
@@ -963,6 +997,7 @@ static const test_desc tests[] = {
     TESTCASE(tg_spell2),
     TESTCASE(tg_max_word_length1),
     TESTCASE(snipgen1),
+    TESTCASE(sg_first_nonword),
     TESTCASE(sg_stem),
     END_OF_TESTCASES
 };
