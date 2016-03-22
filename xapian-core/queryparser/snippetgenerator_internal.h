@@ -43,11 +43,12 @@ class SnippetGenerator::Internal : public Xapian::Internal::RefCntBase {
 
     termcount horizon;
     termcount lastpos;
-    std::queue<std::string> context;
+    std::deque<std::string> context;
     std::string result;
 
     termcount termpos;
 
+    void push_context(const std::string & term);
     void accept_term(const std::string & term, termcount pos);
     void accept_nonword_char(unsigned ch, termcount pos);
 

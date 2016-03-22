@@ -53,9 +53,7 @@ SnippetGenerator::Internal::accept_term(const string & term, termcount pos)
 
     // we don't keep context across termpos discontinuities
     if (pos > (lastpos+2)) {
-	// there is no queue::clear() dammit
-	while (!context.empty())
-	    context.pop();
+	context.clear();
 	leading_nonword = "";
     }
     lastpos = pos;
@@ -75,7 +73,7 @@ SnippetGenerator::Internal::accept_term(const string & term, termcount pos)
 	// flush the before-context
 	while (!context.empty()) {
 	    result += context.front();
-	    context.pop();
+	    context.pop_front();
 	}
 
 	// emit the match, highlighted
@@ -91,13 +89,19 @@ SnippetGenerator::Internal::accept_term(const string & term, termcount pos)
     } else {
 	// not explicitly in a context, but remember the
 	// term in the context queue for later
-	context.push(term);
-	while (context.size() > context_length) {
-	    context.pop();
-	    leading_nonword = "";
-	}
-	// this order handles the context_length=0 case gracefully
+	push_context(term);
     }
+}
+
+void
+SnippetGenerator::Internal::push_context(const string & term)
+{
+    context.push_back(term);
+    while (context.size() > context_length) {
+	context.pop_front();
+	leading_nonword = "";
+    }
+    // this order handles the context_length=0 case gracefully
 }
 
 void
@@ -326,8 +330,7 @@ SnippetGenerator::Internal::reset()
     horizon = 0;
     lastpos = 0;
     nwhitespace = 0;
-    while (!context.empty())
-	context.pop();
+    context.clear();
     matches.clear();
     termpos = 0;
     leading_nonword = "";
