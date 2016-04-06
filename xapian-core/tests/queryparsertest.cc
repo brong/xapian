@@ -708,6 +708,8 @@ static const test test_or_queries[] = {
     { "\"久有归\"", "(久@1 PHRASE 3 有@1 PHRASE 3 归@1)" },
     { "\"久有test归\"", "(久@1 PHRASE 4 有@1 PHRASE 4 test@2 PHRASE 4 归@3)" },
     // FIXME: this should work: { "久 NEAR 有", "(久@1 NEAR 11 有@2)" },
+    // Test fallback to non-CJK_NGRAM parsing for failed CJK_NGRAMs
+    { "A 李A", "(a:(pos=1) AND Z李a:(pos=2))" },
     { NULL, NULL }
 };
 
