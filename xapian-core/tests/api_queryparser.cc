@@ -795,9 +795,14 @@ static const test test_and_queries[] = {
     { "a b site:xapian.org", "((Za@1 AND Zb@2) FILTER Hxapian.org)" },
     { "site:xapian.org a b", "((Za@1 AND Zb@2) FILTER Hxapian.org)" },
     { NULL, "CJK" }, // Enable FLAG_CJK_NGRAM
+#if 0
     // Test n-gram generation:
     { "author:험가 OR subject:万众 hello world!", "((A험@1 AND A험가@1 AND A가@1) OR ((XT万@2 AND XT万众@2 AND XT众@2) AND (Zhello@3 AND Zworld@4)))" },
-    { "洛伊one儿差点two脸three", "((((((洛@1 AND 洛伊@1 AND 伊@1) AND Zone@2) AND (儿@3 AND 儿差@3 AND 差@3 AND 差点@3 AND 点@3)) AND Ztwo@4) AND 脸@5) AND Zthree@6)" },
+    { "洛伊one儿差点two脸three", "((((((洛@1 AND 洛伊@1 AND 伊@1) AND Zone@2) AND (儿@3 AND 儿差@3 AND 差@3 AND 差 点@3 AND 点@3)) AND Ztwo@4) AND 脸@5) AND Zthree@6)" },
+#endif
+    // Test word splitting:
+    { "author:험가 OR subject:万众 hello world!", "(A험가@1 OR ((XT万@2 AND XT众@2) AND (Zhello@3 AND Zworld@4)))" },
+    { "洛伊one儿差点two脸three", "(((((洛伊@1 AND Zone@2) AND (儿@3 AND 差点@3)) AND Ztwo@4) AND 脸@5) AND Zthree@6)"},
     { NULL, NULL }
 };
 
@@ -858,7 +863,10 @@ DEFINE_TESTCASE(qp_default_prefix1, !backend) {
     qobj = qp.parse_query("title:(stuff) me", Xapian::QueryParser::FLAG_BOOLEAN, "A");
     TEST_STRINGS_EQUAL(qobj.get_description(), "Query((ZXTstuff@1 OR ZAme@2))");
     qobj = qp.parse_query("英国 title:文森hello", qp.FLAG_CJK_NGRAM, "A");
+#if 0
     TEST_STRINGS_EQUAL(qobj.get_description(), "Query((((A英@1 AND A英国@1 AND A国@1) OR (XT文@2 AND XT文森@2 AND XT森@2)) OR ZAhello@3))");
+#endif
+    TEST_STRINGS_EQUAL(qobj.get_description(), "Query(((A英国@1 OR (XT文@2 AND XT森@2)) OR ZAhello@3))");
     return true;
 }
 

@@ -122,26 +122,26 @@ static const test test_simple[] = {
     { "", "fish+chips", "Zchip:1 Zfish:1 chips[2] fish[1]" },
 
     // Basic CJK tests:
-    { "stem=,cjk", "久有归天", "久[1] 久有:1 天[4] 归[3] 归天:1 有[2] 有归:1" },
-    { "", "극지라", "극[1] 극지:1 라[3] 지[2] 지라:1" },
-    { "", "ウルス アップ", "ア[4] アッ:1 ウ[1] ウル:1 ス[3] ッ[5] ップ:1 プ[6] ル[2] ルス:1" },
+    { "stem=,cjk", "久有归天", "久[1] 归天[3] 有[2]" },
+    { "", "극지라", "극지라[1]" },
+    { "", "ウルス アップ", "アップ[2] ウルス[1]" },
 
     // Non-CJK in CJK-mode:
     { "", "hello World Test", "hello[1] test[3] world[2]" },
 
     // CJK with prefix:
-    { "prefix=XA", "发送从", "XA从[3] XA发[1] XA发送:1 XA送[2] XA送从:1" },
-    { "prefix=XA", "点卡思考", "XA卡[2] XA卡思:1 XA思[3] XA思考:1 XA点[1] XA点卡:1 XA考[4]" },
+    { "prefix=XA", "发送从", "XA从[2] XA发送[1]" },
+    { "prefix=XA", "点卡思考", "XA卡[2] XA思考[3] XA点[1]" },
 
     // CJK mixed with non-CJK:
-    { "prefix=", "インtestタ", "test[3] イ[1] イン:1 タ[4] ン[2]" },
+    { "prefix=", "インtestタ", "test[2] イン[1] タ[3]" },
     { "", "配this is合a个 test!", "a[5] is[3] test[7] this[2] 个[6] 合[4] 配[1]" },
 
     // CJK with CJK punctuation
     // the text contains U+FF01 FULLWIDTH EXCLAMATION MARK which
     // is both a CJK character and a non-word character; it should
     // be handled as non-word text and not appear in any term
-    { "", "申込み！月額円", "み[3] 円[6] 月[4] 月額:1 申[1] 申込:1 込[2] 込み:1 額[5] 額円:1" },
+    { "", "申込み！月額円", "み[2] 円[4] 月額[3] 申込[1]" },
 
     // Test set_stemming_strategy():
     { "stem=en,none,!cjk",
@@ -1006,21 +1006,34 @@ DEFINE_TESTCASE(test_snipgen_cover, !backend) {
 }
 
 DEFINE_TESTCASE(test_sg_cjk_punctuation, !backend) {
-    Xapian::SnippetGenerator snipgen;
-    snipgen.set_context_length(3);
-    Xapian::Stem stemmer("en");
-    snipgen.set_stemmer(stemmer);
-
-    std::string text("申込み殺到！Nexus7が0円！WiMAX月額3,770円使い放題とセットでお得");
-
     // the text contains U+FF01 FULLWIDTH EXCLAMATION MARK which
     // is both a CJK character and a non-word character; it should
     // be handled as non-word text and appear in both the before
     // and after contexts
-    snipgen.reset();
-    snipgen.add_match("Nexus7");
-    snipgen.accept_text(text);
-    TEST_EQUAL(snipgen.get_snippets(), "み殺到！<b>Nexus7</b>が0円！");
+    std::string text("申込み殺到！Nexus7が0円！WiMAX月額3,770円使い放題とセットでお得");
+
+    std::string snippets[] = {
+        "殺到！<b>Nexus7</b>が",
+        // the CJK word tokenizer treats み as a word, but this isn't
+        // necessarily correct. The kuromoji tokenizer would split the
+        // first five Unicode characters of the search text only in two
+        // words: 申込み and 殺到
+        "み殺到！<b>Nexus7</b>が0",
+        "申込み殺到！<b>Nexus7</b>が0円！"
+    };
+
+
+    for (int i = 0; i < 3; i++) {
+        Xapian::SnippetGenerator snipgen;
+        snipgen.set_context_length(i+1);
+        Xapian::Stem stemmer("en");
+        snipgen.set_stemmer(stemmer);
+
+        snipgen.reset();
+        snipgen.add_match("Nexus7");
+        snipgen.accept_text(text);
+        TEST_EQUAL(snipgen.get_snippets(), snippets[i]);
+    }
 
     return true;
 }
@@ -1033,17 +1046,61 @@ DEFINE_TESTCASE(test_sg_cjk_ngrams, !backend) {
 
     std::string text("申込み殺到！Nexus7が0円！WiMAX月額3,770円使い放題とセットでお得");
 
-    // a one-character CJK search term should be matched
+    // a one-character CJK search term should be matched only if it's a word
     snipgen.reset();
     snipgen.add_match("放");
     snipgen.accept_text(text);
-    TEST_EQUAL(snipgen.get_snippets(), "円使い<b>放</b>題とセ");
+    TEST_EQUAL(snipgen.get_snippets(), "");
+
+    snipgen.reset();
+    snipgen.add_match("と");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "円使い放題<b>と</b>セットでお");
 
     // a two-character CJK search term should be matched
     snipgen.reset();
     snipgen.add_match("放題");
     snipgen.accept_text(text);
-    TEST_EQUAL(snipgen.get_snippets(), "円使い<b>放題</b>とセッ");
+    TEST_EQUAL(snipgen.get_snippets(), "3,770円使い<b>放題</b>とセットで");
+
+    return true;
+}
+
+DEFINE_TESTCASE(test_sg_cjk_japanese_words, !backend) {
+    Xapian::SnippetGenerator snipgen;
+    snipgen.set_context_length(1);
+    Xapian::Stem stemmer("en");
+    snipgen.set_stemmer(stemmer);
+
+    std::string text("申込み殺到！Nexus7が0円！WiMAX月額3,770円使い放題とセットでお得");
+
+    // a one-character CJK search term should be matched
+    snipgen.reset();
+    snipgen.add_match("と");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "放題<b>と</b>セット");
+
+    // a two-character CJK search term should be matched
+    snipgen.reset();
+    snipgen.add_match("放題");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "使い<b>放題</b>と");
+
+    return true;
+}
+
+DEFINE_TESTCASE(test_sg_cjk_chinese_words, !backend) {
+    Xapian::SnippetGenerator snipgen;
+    snipgen.set_context_length(2);
+    Xapian::Stem stemmer("en");
+    snipgen.set_stemmer(stemmer);
+
+    std::string text("明末時已經有香港地方的概念");
+
+    snipgen.reset();
+    snipgen.add_match("有");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "時已經<b>有</b>香港地方");
 
     return true;
 }

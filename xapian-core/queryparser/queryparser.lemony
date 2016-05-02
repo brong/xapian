@@ -494,7 +494,7 @@ Term::as_cjk_query() const
     vector<Query> prefix_cjk;
     const list<string> & prefixes = field_info->prefixes;
     list<string>::const_iterator piter;
-    for (CJKTokenIterator tk(name); tk != CJKTokenIterator(); ++tk) {
+    for (CJKWordIterator tk(name); tk != CJKWordIterator(); ++tk) {
 	for (piter = prefixes.begin(); piter != prefixes.end(); ++piter) {
 	    string cjk = *piter;
 	    cjk += *tk;

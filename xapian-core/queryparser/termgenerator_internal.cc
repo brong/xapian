@@ -173,9 +173,9 @@ parse_terms(Utf8Iterator itor, bool cjk_ngram, bool with_positions, ACTION actio
 		CJK::codepoint_is_cjk(*itor) &&
 		Unicode::is_wordchar(*itor)) {
 		const string & cjk = CJK::get_cjk(itor);
-		for (CJKTokenIterator tk(cjk); tk != CJKTokenIterator(); ++tk) {
+		for (CJKWordIterator tk(cjk); tk != CJKWordIterator(); ++tk) {
 		    const string & cjk_token = *tk;
-		    if (!action(cjk_token, with_positions && tk.get_length() == 1, itor))
+		    if (!action(cjk_token, with_positions, itor))
 			return;
 		}
 		while (true) {

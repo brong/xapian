@@ -32,6 +32,9 @@
 
 #include <string>
 
+#include <unicode/unistr.h>
+#include <unicode/brkiter.h>
+
 namespace CJK {
 
 /** Should we use the CJK n-gram code?
@@ -49,9 +52,8 @@ std::string get_cjk(Xapian::Utf8Iterator &it);
 }
 
 class CJKTokenIterator {
+  protected:
     Xapian::Utf8Iterator it;
-
-    mutable Xapian::Utf8Iterator p;
 
     mutable unsigned len;
 
@@ -59,22 +61,55 @@ class CJKTokenIterator {
 
   public:
     CJKTokenIterator(const std::string & s)
-	: it(s) { }
+       : it(s) { }
 
     CJKTokenIterator(const Xapian::Utf8Iterator & it_)
-	: it(it_) { }
+       : it(it_) { }
 
     CJKTokenIterator()
-	: it() { }
+       : it() { }
 
-    const std::string & operator*() const;
+    virtual const std::string & operator*() const = 0;
 
-    CJKTokenIterator & operator++();
+    virtual CJKTokenIterator & operator++() = 0;
 
     /// Get the length of the current token in Unicode characters.
     unsigned get_length() const { return len; }
 
     friend bool operator==(const CJKTokenIterator &, const CJKTokenIterator &);
+};
+
+class CJKNgramIterator : public CJKTokenIterator {
+
+    mutable Xapian::Utf8Iterator p;
+
+  public:
+    using CJKTokenIterator::CJKTokenIterator;
+
+    CJKTokenIterator & operator++();
+
+    const std::string & operator*() const;
+};
+
+class CJKWordIterator : public CJKTokenIterator {
+    mutable int32_t p, q;
+    icu::UnicodeString ustr;
+    icu::BreakIterator *brk;
+
+  public:
+    CJKWordIterator(const std::string & s);
+
+    CJKWordIterator() : CJKTokenIterator() { p = q = UBRK_DONE; brk = NULL; }
+
+    ~CJKWordIterator() { delete brk; }
+
+    CJKTokenIterator & operator++();
+
+    const std::string & operator*() const;
+
+    friend bool operator==(const CJKWordIterator & a, const CJKWordIterator & b);
+
+    friend bool operator!=(const CJKWordIterator & a, const CJKWordIterator & b);
 };
 
 inline bool
@@ -87,6 +122,19 @@ operator==(const CJKTokenIterator & a, const CJKTokenIterator & b)
 
 inline bool
 operator!=(const CJKTokenIterator & a, const CJKTokenIterator & b)
+{
+    return !(a == b);
+}
+
+inline bool operator==(const CJKWordIterator & a, const CJKWordIterator & b)
+{
+    // We only really care about comparisons where one or other is an end
+    // iterator.
+    return a.p == b.p && a.q == b.q;
+}
+
+inline bool
+operator!=(const CJKWordIterator & a, const CJKWordIterator & b)
 {
     return !(a == b);
 }

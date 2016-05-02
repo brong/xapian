@@ -335,12 +335,12 @@ SnippetGenerator::Internal::accept_text(Utf8Iterator itor)
 		CJK::codepoint_is_cjk(*itor) &&
 		Unicode::is_wordchar(*itor)) {
 		const string & cjk = CJK::get_cjk(itor);
-		for (CJKTokenIterator tk(cjk); tk != CJKTokenIterator(); ++tk) {
+		for (CJKWordIterator tk(cjk); tk != CJKWordIterator(); ++tk) {
 		    const string & cjk_token = *tk;
 		    if (cjk_token.size() > MAX_PROB_TERM_LENGTH) continue;
 
 		    // Add unstemmed form positional information.
-		    accept_term(cjk_token, ++termpos, tk.get_length());
+		    accept_term(cjk_token, ++termpos, 0);
 		}
 		while (true) {
 		    if (itor == Utf8Iterator()) return;

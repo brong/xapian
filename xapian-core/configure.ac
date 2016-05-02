@@ -259,6 +259,12 @@ AC_SUBST([abi_affecting_cxxflags])
 
 XAPIAN_LDFLAGS=
 XAPIAN_LIBS=
+
+dnl Check for ICU. We require this for the CJKWordIterator
+PKG_CHECK_MODULES([ICU], [icu-uc])
+AC_SUBST([ICU_CFLAGS])
+AC_SUBST([ICU_LIBS])
+
 AC_SUBST([XAPIAN_LDFLAGS])
 AC_SUBST([XAPIAN_LIBS])
 
