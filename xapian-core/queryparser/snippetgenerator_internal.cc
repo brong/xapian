@@ -295,8 +295,6 @@ inline unsigned check_suffix(unsigned ch) {
 void
 SnippetGenerator::Internal::accept_text(Utf8Iterator itor)
 {
-    bool cjk_ngram = CJK::is_cjk_enabled();
-
     while (true) {
 	// Advance to the start of the next term.
 	unsigned ch;
@@ -331,9 +329,7 @@ SnippetGenerator::Internal::accept_text(Utf8Iterator itor)
 	}
 
 	while (true) {
-	    if (cjk_ngram &&
-		CJK::codepoint_is_cjk(*itor) &&
-		Unicode::is_wordchar(*itor)) {
+	    if (CJK::codepoint_is_cjk(*itor) && Unicode::is_wordchar(*itor)) {
 		const string & cjk = CJK::get_cjk(itor);
 		for (CJKWordIterator tk(cjk); tk != CJKWordIterator(); ++tk) {
 		    const string & cjk_token = *tk;
@@ -354,8 +350,7 @@ SnippetGenerator::Internal::accept_text(Utf8Iterator itor)
 	    do {
 		Unicode::append_utf8(term, ch);
 		prevch = ch;
-		if (++itor == Utf8Iterator() ||
-		    (cjk_ngram && CJK::codepoint_is_cjk(*itor)))
+		if (++itor == Utf8Iterator() || CJK::codepoint_is_cjk(*itor))
 		    goto endofterm;
 		ch = check_wordchar(*itor);
 	    } while (ch);

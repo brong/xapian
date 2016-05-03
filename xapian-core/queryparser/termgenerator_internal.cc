@@ -241,7 +241,7 @@ void
 TermGenerator::Internal::index_text(Utf8Iterator itor, termcount wdf_inc,
 				    const string & prefix, bool with_positions)
 {
-    bool cjk_ngram = (flags & FLAG_CJK_NGRAM) || CJK::is_cjk_enabled();
+    bool cjk_ngram = (flags & FLAG_CJK_NGRAM);
 
     int stop_mode = STOPWORDS_INDEX_UNSTEMMED_ONLY;
 
@@ -658,8 +658,6 @@ MSet::Internal::snippet(const string & text,
 	return text;
     }
 
-    bool cjk_ngram = CJK::is_cjk_enabled();
-
     size_t term_start = 0;
     double min_tw = 0, max_tw = 0;
     if (stats) stats->get_max_termweight(min_tw, max_tw);
@@ -677,7 +675,7 @@ MSet::Internal::snippet(const string & text,
     vector<string> phrase;
     if (longest_phrase) phrase.resize(longest_phrase - 1);
     size_t phrase_next = 0;
-    parse_terms(Utf8Iterator(text), cjk_ngram, true,
+    parse_terms(Utf8Iterator(text), true /*cjk_ngram*/, true,
 	[&](const string & term, bool positional, const Utf8Iterator & it) {
 	    // FIXME: Don't hardcode this here.
 	    const size_t max_word_length = 64;

@@ -40,14 +40,6 @@ using namespace std;
 
 static unsigned NGRAM_SIZE = 2;
 
-bool
-CJK::is_cjk_enabled()
-{
-    const char * p;
-    static bool result = ((p = getenv("XAPIAN_CJK_NGRAM")) != NULL && *p);
-    return result;
-}
-
 // 2E80..2EFF; CJK Radicals Supplement
 // 3000..303F; CJK Symbols and Punctuation
 // 3040..309F; Hiragana
