@@ -951,6 +951,60 @@ DEFINE_TESTCASE(test_sg_first_nonword, !backend) {
     return true;
 }
 
+DEFINE_TESTCASE(test_snipgen_cover, !backend) {
+    Xapian::SnippetGenerator snipgen;
+    snipgen.set_context_length(2);
+
+    std::string text("foo bar baz and bam xyz ham qux corge grault foo garply "
+            "bar waldo fred plugh xyzzy and thud wibble wobble foo wubble and "
+            "flob blah blubb bla bar norf spam ham bar eggs and toto ono titi "
+            "tata tutu foo truc bidu mach and bar azerty bla pippo lana");
+
+    snipgen.reset();
+    snipgen.add_match("foo");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "<b>foo</b> bar baz"
+            "...corge grault <b>foo</b> garply bar"
+            "...wibble wobble <b>foo</b> wubble and"
+            "...tata tutu <b>foo</b> truc bidu");
+
+    snipgen.reset();
+    snipgen.add_match("foo");
+    snipgen.add_match("bar");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(),"<b>foo</b> <b>bar</b> baz and"
+            "...corge grault <b>foo</b> garply <b>bar</b> waldo fred"
+            "...tata tutu <b>foo</b> truc bidu mach and <b>bar</b> azerty bla");
+
+    snipgen.reset();
+    snipgen.add_match("bar");
+    snipgen.add_match("bla");
+    snipgen.add_match("blubb");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(),"...flob blah <b>blubb</b> <b>bla</b> "
+            "<b>bar</b> norf spam ham <b>bar</b> eggs and");
+
+    snipgen.reset();
+    snipgen.add_match("bar");
+    snipgen.add_match("baz");
+    snipgen.add_match("toto");
+    snipgen.add_match("titi");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "...blubb bla <b>bar</b> norf spam ham "
+            "<b>bar</b> eggs and <b>toto</b> ono <b>titi</b> tata tutu");
+
+    snipgen.reset();
+    snipgen.add_match("bam");
+    snipgen.add_match("xyz");
+    snipgen.add_match("toto");
+    snipgen.add_match("titi");
+    snipgen.accept_text(text);
+    TEST_EQUAL(snipgen.get_snippets(), "baz and <b>bam</b> <b>xyz</b> ham qux"
+            "...eggs and <b>toto</b> ono <b>titi</b> tata tutu");
+
+    return true;
+}
+
 DEFINE_TESTCASE(test_sg_cjk_punctuation, !backend) {
     Xapian::SnippetGenerator snipgen;
     snipgen.set_context_length(3);

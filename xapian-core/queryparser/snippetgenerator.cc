@@ -129,7 +129,12 @@ SnippetGenerator::set_context_length(unsigned length)
 std::string
 SnippetGenerator::get_snippets()
 {
-    return internal->result;
+    internal->push_result();
+    std::string s = "";
+    std::deque<string>::iterator it;
+    for (it = internal->snippets.begin(); it != internal->snippets.end(); ++it)
+        s += *it;
+    return s;
 }
 
 void

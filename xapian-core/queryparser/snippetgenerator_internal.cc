@@ -67,6 +67,7 @@ SnippetGenerator::Internal::accept_term(const string & term,
 	if (xpos > horizon + context.size() + 1 && result != "") {
 	    // there was a gap from the end of the context after
 	    // the previous snippet, so start a new snippet
+	    push_result();
 	    result += inter_snippet;
 	} else {
 	    result += leading_nonword;
@@ -88,6 +89,7 @@ SnippetGenerator::Internal::accept_term(const string & term,
 	result += pre_match;
 	result += term;
 	result += post_match;
+	match_cover.insert(term);
 
 	// some following 1-grams may be included in the
 	// match text, so don't add them to context.
@@ -123,6 +125,38 @@ SnippetGenerator::Internal::accept_term(const string & term,
 	}
 	// don't keep N>1 N-grams in context, they're redundant
     }
+}
+
+// push_result pushes the current snippet result in the snippet
+// queue. It ensures the following invariants:
+//
+// - The head of the queue always contains the result with the
+//   highest matchcount seen in the text.
+//
+// - Any following members of the queue have the same matchcount
+//   as head and are prepended with inter_snippet. They occur in
+//   the same order as in the original text.
+//
+// The matchcount is defined as the number of search terms which
+// occur at least once in the snippet.
+void
+SnippetGenerator::Internal::push_result()
+{
+    unsigned matchcount = match_cover.size();
+
+    if (result.empty() || !matchcount)
+        return;
+
+    if (matchcount > best_matchcount) {
+        snippets.clear();
+        best_matchcount = matchcount;
+        snippets.push_back(result);
+    } else if (matchcount == best_matchcount) {
+        snippets.push_back(result);
+    }
+
+    result = "";
+    match_cover.clear();
 }
 
 void
@@ -418,6 +452,9 @@ SnippetGenerator::Internal::reset()
     leading_nonword = "";
     pending_1gram = "";
     ignore_1grams = 0;
+    best_matchcount = 0;
+    snippets.clear();
+    match_cover.clear();
 }
 
 }

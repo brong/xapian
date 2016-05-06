@@ -48,17 +48,22 @@ class SnippetGenerator::Internal : public Xapian::Internal::intrusive_base {
     std::deque<std::string> context;
     std::string result;
 
+    std::deque<std::string> snippets;
+    std::tr1::unordered_set<std::string> match_cover;
+    termcount best_matchcount;
+
     termcount termpos;
 
     void push_context(const std::string & term);
     void accept_term(const std::string & term, termcount pos, int ngram_len);
     void accept_nonword_char(unsigned ch, termcount pos);
+    void push_result();
 
   public:
     Internal() : pre_match("<b>"), post_match("</b>"),
 		 inter_snippet("..."), context_length(5),
 		 nwhitespace(0), horizon(0), lastpos(0),
-		 termpos(0) { }
+		 best_matchcount(0), termpos(0) { }
     void add_match(const std::string & term);
     void accept_text(Utf8Iterator itor);
     void reset();
