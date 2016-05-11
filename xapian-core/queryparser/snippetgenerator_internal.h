@@ -32,6 +32,7 @@ namespace Xapian {
 class SnippetGenerator::Internal : public Xapian::Internal::intrusive_base {
     friend class SnippetGenerator;
     Stem stemmer;
+    Xapian::Internal::intrusive_ptr<SnippetGenerator::TermNormalizer> normalizer;
     std::string pre_match;
     std::string post_match;
     std::string inter_snippet;
@@ -60,7 +61,7 @@ class SnippetGenerator::Internal : public Xapian::Internal::intrusive_base {
     void push_result();
 
   public:
-    Internal() : pre_match("<b>"), post_match("</b>"),
+    Internal() : normalizer(0), pre_match("<b>"), post_match("</b>"),
 		 inter_snippet("..."), context_length(5),
 		 nwhitespace(0), horizon(0), lastpos(0),
 		 best_matchcount(0), termpos(0) { }

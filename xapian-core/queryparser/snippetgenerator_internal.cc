@@ -46,9 +46,15 @@ void
 SnippetGenerator::Internal::accept_term(const string & term,
 					termcount pos, int ngram_len)
 {
-    string stem = Unicode::tolower(term);
+    string stem;
+    if (normalizer.get()) {
+        stem = normalizer->normalize(term);
+    } else {
+        stem = term;
+    }
+    stem = Unicode::tolower(stem);
     if (stemmer.internal.get())
-	stem = stemmer(stem);
+        stem = stemmer(stem);
 
     // we don't keep context across termpos discontinuities
     if (pos > (lastpos+2)) {
@@ -455,6 +461,7 @@ SnippetGenerator::Internal::reset()
     best_matchcount = 0;
     snippets.clear();
     match_cover.clear();
+    if (normalizer.get()) normalizer->reset();
 }
 
 }

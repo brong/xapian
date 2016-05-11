@@ -58,6 +58,39 @@ class XAPIAN_VISIBILITY_DEFAULT SnippetGenerator {
     /// Destructor.
     ~SnippetGenerator();
 
+    /** TermNormalizer normalizes text terms before stemming and matching
+     *
+     * During accept_text, the snippet generator first stems, then matches
+     * any terms in the document against the matches. However, if matches have
+     * been normalized by the user, accept_text may fail to recognize
+     * unnormalized document terms as matches.
+     *
+     * This optional normalizer allows to use the same, user-defined normalization
+     * heuristic for both matches and document terms.
+     */
+    class TermNormalizer : public Xapian::Internal::opt_intrusive_base {
+        public:
+            virtual ~TermNormalizer() { }
+
+            /** Resets the normalizer
+             */
+            virtual void reset() { }
+
+            /** Normalize a term
+             *
+             * Both the input and output term must be UTF-8 encoded.
+             *
+             * @param term the term to be normalized
+             */
+            virtual const std::string & normalize(const std::string & term) = 0;
+    };
+
+    /** Set the normalizer to normalize terms
+     *
+     * @param normalizer the normalizer to be used
+     */
+    void set_normalizer(TermNormalizer * normalizer);
+
     /// Set the Xapian::Stem object to be used for generating stemmed terms.
     void set_stemmer(const Xapian::Stem & stemmer);
 
@@ -163,7 +196,7 @@ class XAPIAN_VISIBILITY_DEFAULT SnippetGenerator {
 
     /** Reset the snippets state for another set of text.
      *
-     * Resets the snippet results, matches, termpos, and any saved
+     * Resets the snippet results, matches, termpos, normalizer and any saved
      * context, so that another document or another field of the same
      * document can be accepted.  Preserves parameters like stemmer etc.
      */

@@ -49,6 +49,12 @@ SnippetGenerator::set_stemmer(const Xapian::Stem & stemmer)
 }
 
 void
+SnippetGenerator::set_normalizer(Xapian::SnippetGenerator::TermNormalizer * n)
+{
+    internal->normalizer = n;
+}
+
+void
 SnippetGenerator::add_match(const std::string & term)
 {
     internal->add_match(term);
