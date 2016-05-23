@@ -29,7 +29,10 @@
 #include <xapian/attributes.h>
 #include <xapian/database.h>
 #include <xapian/deprecated.h>
+#include <xapian/intrusive_ptr.h>
+#include <xapian/postingiterator.h>
 #include <xapian/types.h>
+#include <xapian/valueiterator.h>
 #include <xapian/visibility.h>
 
 #include <string>
@@ -41,7 +44,8 @@ class Registry;
 
 /** Base class which provides an "external" source of postings.
  */
-class XAPIAN_VISIBILITY_DEFAULT PostingSource {
+class XAPIAN_VISIBILITY_DEFAULT PostingSource
+    : public Xapian::Internal::opt_intrusive_base {
     /// Don't allow assignment.
     void operator=(const PostingSource &);
 
@@ -359,6 +363,16 @@ class XAPIAN_VISIBILITY_DEFAULT PostingSource {
      *  get_description() gives for their subclass).
      */
     virtual std::string get_description() const;
+
+    PostingSource * release() {
+	opt_intrusive_base::release();
+	return this;
+    }
+
+    const PostingSource * release() const {
+	opt_intrusive_base::release();
+	return this;
+    }
 };
 
 
@@ -377,7 +391,7 @@ class XAPIAN_VISIBILITY_DEFAULT ValuePostingSource : public PostingSource {
     // code, but we also want to be able to inline functions to access them,
     // without those functions generating deprecated warnings.  To achieve
     // this, we make the old names references to members with a "real_" prefix
-    // and then use the latter in the inlined acessor functions.  The
+    // and then use the latter in the inlined accessor functions.  The
     // constructor initialises all the references to point to their "real_"
     // counterparts.
     Xapian::Database real_db;

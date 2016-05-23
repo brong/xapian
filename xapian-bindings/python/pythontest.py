@@ -1,7 +1,7 @@
 # Tests of Python-specific parts of the xapian bindings.
 #
 # Copyright (C) 2007 Lemur Consulting Ltd
-# Copyright (C) 2008,2009,2010,2011,2013,2014,2015 Olly Betts
+# Copyright (C) 2008,2009,2010,2011,2013,2014,2015,2016 Olly Betts
 # Copyright (C) 2010,2011 Richard Boulton
 #
 # This program is free software; you can redistribute it and/or
@@ -38,7 +38,7 @@ def setup_database():
     """Set up and return an inmemory database with 5 documents.
 
     """
-    db = xapian.inmemory_open()
+    db = xapian.WritableDatabase('', xapian.DB_BACKEND_INMEMORY)
 
     doc = xapian.Document()
     doc.set_data("is it cold?")
@@ -1379,7 +1379,7 @@ def test_preserve_enquire_sorter():
     """Test preservation of sorter set on enquire.
 
     """
-    db = xapian.inmemory_open()
+    db = xapian.WritableDatabase('', xapian.DB_BACKEND_INMEMORY)
     doc = xapian.Document()
     doc.add_term('foo')
     doc.add_value(1, '1')
@@ -1497,7 +1497,7 @@ def test_compactor():
         db1.set_metadata('key', '1')
         db1.set_metadata('key1', '1')
         db1.add_document(doc1)
-        db1.flush()
+        db1.commit()
 
         db2 = xapian.WritableDatabase(db2path, xapian.DB_CREATE_OR_OVERWRITE)
         doc2 = xapian.Document()
@@ -1507,7 +1507,7 @@ def test_compactor():
         db2.set_metadata('key', '2')
         db2.set_metadata('key2', '2')
         db2.add_document(doc2)
-        db2.flush()
+        db2.commit()
 
         # Compact with the default compactor
         # Metadata conflicts are resolved by picking the first value
@@ -1571,7 +1571,7 @@ def test_leak_mset_items():
     """Test that items property of MSet doesn't leak
 
     """
-    db = xapian.inmemory_open()
+    db = xapian.WritableDatabase('', xapian.DB_BACKEND_INMEMORY)
     doc = xapian.Document()
     doc.add_term('drip')
     db.add_document(doc)
@@ -1607,7 +1607,7 @@ def test_custom_matchspy():
 
 def test_removed_features():
     ok = True
-    db = xapian.inmemory_open()
+    db = xapian.WritableDatabase('', xapian.DB_BACKEND_INMEMORY)
     doc = xapian.Document()
     enq = xapian.Enquire(db)
     eset = xapian.ESet()

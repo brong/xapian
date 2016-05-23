@@ -143,6 +143,9 @@ struct XAPIAN_VISIBILITY_DEFAULT LatLongCoord {
     std::string serialise() const;
 
     /** Compare with another LatLongCoord.
+     *
+     *  This is mostly provided so that things like std::map<LatLongCoord> work
+     *  - the ordering isn't particularly meaningful.
      */
     bool XAPIAN_NOTHROW(operator<(const LatLongCoord & other) const)
     {
@@ -476,6 +479,11 @@ class XAPIAN_VISIBILITY_DEFAULT LatLongDistancePostingSource : public ValuePosti
 				 double max_range_ = 0.0,
 				 double k1_ = 1000.0,
 				 double k2_ = 1.0);
+    LatLongDistancePostingSource(Xapian::valueno slot_,
+				 const LatLongCoords & centre_,
+				 double max_range_ = 0.0,
+				 double k1_ = 1000.0,
+				 double k2_ = 1.0);
     ~LatLongDistancePostingSource();
 
     void next(double min_wt);
@@ -543,6 +551,14 @@ class XAPIAN_VISIBILITY_DEFAULT LatLongDistanceKeyMaker : public KeyMaker {
     {}
 
     LatLongDistanceKeyMaker(Xapian::valueno slot_,
+			    const LatLongCoords & centre_)
+	    : slot(slot_),
+	      centre(centre_),
+	      metric(new Xapian::GreatCircleMetric()),
+	      defkey(9, '\xff')
+    {}
+
+    LatLongDistanceKeyMaker(Xapian::valueno slot_,
 			    const LatLongCoord & centre_,
 			    const LatLongMetric & metric_,
 			    double defdistance)
@@ -560,6 +576,16 @@ class XAPIAN_VISIBILITY_DEFAULT LatLongDistanceKeyMaker : public KeyMaker {
 	    : slot(slot_),
 	      centre(),
 	      metric(metric_.clone()),
+	      defkey(9, '\xff')
+    {
+	centre.append(centre_);
+    }
+
+    LatLongDistanceKeyMaker(Xapian::valueno slot_,
+			    const LatLongCoord & centre_)
+	    : slot(slot_),
+	      centre(),
+	      metric(new Xapian::GreatCircleMetric()),
 	      defkey(9, '\xff')
     {
 	centre.append(centre_);

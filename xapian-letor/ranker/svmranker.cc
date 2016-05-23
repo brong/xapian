@@ -1,4 +1,4 @@
-/* ranker.cc: The abstract ranker file.
+/* ranker.h: The abstract ranker file.
  *
  * Copyright (C) 2012 Parth Gupta
  *
@@ -17,47 +17,49 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301
  * USA
  */
- 
-#include <ranker.h>
+
+#ifndef SVMRANKER_H
+#define SVMRANKER_H
+
+
+#include <xapian.h>
+#include <xapian/deprecated.h>
+#include <xapian/types.h>
+#include <xapian/visibility.h>
+
+#include <xapian-letor/ranker.h>
+#include <xapian-letor/ranklist.h>
+//#include "evalmetric.h"
+
+#include <list>
+#include <map>
+
+using namespace std;
+
 
 namespace Xapian {
 
-Ranker::Ranker() {
-}
+class XAPIAN_VISIBILITY_DEFAULT SVMRanker: public Ranker {
+
+    string model = NULL;
+    double* weight;
+  public:
+    SVMRanker() {};
 
     /* Override all the four methods below in the ranker sub-classes files
      * wiz svmranker.cc , listnet.cc, listmle.cc and so on
      */
-std::list<double>
-Ranker::rank(const Xapian::RankList & /*rl*/) {
-    std::list<double> res;
+    Xapian::RankList rank(const Xapian::RankList & rl);
 
-    double d=1.0;
-    res.push_back(d);
-    return res;
-}
+    void learn_model();
 
-void
-Ranker::learn_model() {
-}
+    void load_model(const std::string & model_file);
 
-void
-Ranker::load_model(const std::string & /*model_file*/) {
+    void save_model();
+
+    double score(const Xapian::FeatureVector & fv);
+
+};
 
 }
-
-void
-Ranker::save_model() {
-}
-
-    /* This method should read the letor format data and transform into the list of
-     * Xapian::RankList format
-     */
-std::list<Xapian::RankList>
-Ranker::load_data(const std::string & /*data_file*/) {
-    std::list<Xapian::RankList> res;
-
-    return res;
-}
-
-}
+#endif /* SVMRANKER_H */

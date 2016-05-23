@@ -1,7 +1,7 @@
 /** @file query.cc
  * @brief Xapian::Query API class
  */
-/* Copyright (C) 2011,2012,2013,2015 Olly Betts
+/* Copyright (C) 2011,2012,2013,2015,2016 Olly Betts
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -271,12 +271,16 @@ Query::init(op op_, size_t n_subqueries, Xapian::termcount parameter)
 	    internal = new Xapian::Internal::QueryMax(n_subqueries);
 	    break;
 	default:
+	    if (op_ == OP_INVALID && n_subqueries == 0) {
+		internal = new Xapian::Internal::QueryInvalid();
+		break;
+	    }
 	    throw InvalidArgumentError("op not valid with a list of subqueries");
     }
 }
 
 void
-Query::add_subquery(const Xapian::Query & subquery)
+Query::add_subquery(bool positional, const Xapian::Query & subquery)
 {
     // We could handle this in a type-safe way, but we'd need to at least
     // declare Xapian::Internal::QueryBranch in the API header, which seems
@@ -284,6 +288,23 @@ Query::add_subquery(const Xapian::Query & subquery)
     Xapian::Internal::QueryBranch * branch_query =
 	static_cast<Xapian::Internal::QueryBranch*>(internal.get());
     Assert(branch_query);
+    if (positional) {
+	switch (subquery.get_type()) {
+	    case LEAF_TERM:
+		break;
+	    case LEAF_POSTING_SOURCE:
+	    case LEAF_MATCH_ALL:
+	    case LEAF_MATCH_NOTHING:
+		// None of these have positions, so positional operators won't
+		// match.  Add MatchNothing as that is has special handling in
+		// AND-like queries to reduce the parent query to MatchNothing,
+		// which is appropriate in this case.
+		branch_query->add_subquery(MatchNothing);
+		return;
+	    default:
+		throw Xapian::UnimplementedError("OP_NEAR and OP_PHRASE only currently support leaf subqueries");
+	}
+    }
     branch_query->add_subquery(subquery);
 }
 

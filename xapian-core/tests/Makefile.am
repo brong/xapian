@@ -31,14 +31,10 @@ up:
 check-none: apitest$(EXEEXT) \
             internaltest$(EXEEXT) \
 	    stemtest$(EXEEXT) \
-	    queryparsertest$(EXEEXT) \
-	    termgentest$(EXEEXT) \
 	    unittest$(EXEEXT)
 	$(TESTS_ENVIRONMENT) ./apitest$(EXEEXT) -b none
 	$(TESTS_ENVIRONMENT) ./internaltest$(EXEEXT)
 	$(TESTS_ENVIRONMENT) ./stemtest$(EXEEXT)
-	$(TESTS_ENVIRONMENT) ./queryparsertest$(EXEEXT)
-	$(TESTS_ENVIRONMENT) ./termgentest$(EXEEXT)
 	$(TESTS_ENVIRONMENT) ./unittest$(EXEEXT)
 
 check-inmemory: apitest$(EXEEXT)
@@ -102,11 +98,11 @@ endif
 
 ## Test programs to be run
 TESTS = apitest$(EXEEXT) internaltest$(EXEEXT) stemtest$(EXEEXT) \
- queryparsertest$(EXEEXT) termgentest$(EXEEXT) unittest$(EXEEXT)
+ unittest$(EXEEXT)
 
 ## Programs to build
 check_PROGRAMS = \
-	apitest internaltest stemtest queryparsertest termgentest unittest
+	apitest internaltest stemtest unittest
 
 # Make sure runtest is up to date before running tests
 check_SCRIPTS = runtest
@@ -136,6 +132,7 @@ collated_apitest_sources = \
  api_postingsource.cc \
  api_qpbackend.cc \
  api_query.cc \
+ api_queryparser.cc \
  api_replacedoc.cc \
  api_replicate.cc \
  api_scalability.cc \
@@ -144,6 +141,7 @@ collated_apitest_sources = \
  api_sorting.cc \
  api_spelling.cc \
  api_stem.cc \
+ api_termgen.cc \
  api_transdb.cc \
  api_unicode.cc \
  api_valuestats.cc \
@@ -164,14 +162,6 @@ stemtest_LDADD = ../libgetopt.la ../$(libxapian_la)
 internaltest_SOURCES = internaltest.cc $(testharness_sources)
 internaltest_LDFLAGS = $(NO_INSTALL) $(ldflags)
 internaltest_LDADD = ../libgetopt.la ../$(libxapian_la)
-
-queryparsertest_SOURCES = queryparsertest.cc $(testharness_sources)
-queryparsertest_LDFLAGS = $(NO_INSTALL) $(ldflags)
-queryparsertest_LDADD = ../libgetopt.la ../$(libxapian_la)
-
-termgentest_SOURCES = termgentest.cc $(testharness_sources)
-termgentest_LDFLAGS = $(NO_INSTALL) $(ldflags)
-termgentest_LDADD = ../libgetopt.la ../$(libxapian_la)
 
 unittest_SOURCES = unittest.cc $(utestharness_sources)
 unittest_LDFLAGS = $(NO_INSTALL) $(ldflags)

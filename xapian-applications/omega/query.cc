@@ -25,11 +25,6 @@
 
 #include <config.h>
 
-// If we're building against git after the expand API changed but before the
-// version gets bumped to 1.3.2, we'll get a deprecation warning from
-// get_eset() unless we suppress such warnings here.
-#define XAPIAN_DEPRECATED(D) D
-
 #include <algorithm>
 #include <iostream>
 #include <map>
@@ -117,7 +112,7 @@ static Xapian::Query query;
 Xapian::Query::op default_op = Xapian::Query::OP_AND; // default matching mode
 
 static Xapian::QueryParser qp;
-static Xapian::NumberValueRangeProcessor * size_vrp = NULL;
+static Xapian::NumberRangeProcessor * size_rp = NULL;
 static Xapian::Stem *stemmer = NULL;
 
 static string eval_file(const string &fmtfile);
@@ -324,11 +319,10 @@ set_probabilistic(const string &oldp)
     qp.set_stopper(new MyStopper());
     qp.set_default_op(default_op);
     qp.set_database(db);
-    // FIXME: provide a custom VRP which handles size:10..20K, etc.
-    if (!size_vrp)
-	size_vrp = new Xapian::NumberValueRangeProcessor(VALUE_SIZE, "size:",
-							 true);
-    qp.add_valuerangeprocessor(size_vrp);
+    // FIXME: provide a custom RP which handles size:10..20K, etc.
+    if (!size_rp)
+	size_rp = new Xapian::NumberRangeProcessor(VALUE_SIZE, "size:");
+    qp.add_rangeprocessor(size_rp);
     map<string, string>::const_iterator pfx = option.lower_bound("prefix,");
     for (; pfx != option.end() && startswith(pfx->first, "prefix,"); ++pfx) {
 	string user_prefix(pfx->first, 7);
@@ -928,6 +922,7 @@ CMD_lookup,
 CMD_lower,
 CMD_lt,
 CMD_map,
+CMD_match,
 CMD_max,
 CMD_min,
 CMD_mod,
@@ -1055,6 +1050,7 @@ T(lookup,	   2, 2, N, 0), // lookup in named cdb file
 T(lower,	   1, 1, N, 0), // convert string to lower case
 T(lt,		   2, 2, N, 0), // test <
 T(map,		   1, 2, 1, 0), // map a list into another list
+T(match,	   2, 3, N, 0), // regex match
 T(max,		   1, N, N, 0), // maximum of a list of values
 T(min,		   1, N, N, 0), // minimum of a list of values
 T(mod,		   2, 2, N, 0), // integer modulus
@@ -1765,6 +1761,9 @@ eval(const string &fmt, const vector<string> &param)
 		    }
 		}
 	        break;
+	    case CMD_match:
+		omegascript_match(value, args);
+		break;
 	    case CMD_max: {
 		vector<string>::const_iterator i = args.begin();
 		int val = string_to_int(*i++);

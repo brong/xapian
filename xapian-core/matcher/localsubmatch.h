@@ -24,12 +24,15 @@
 
 #include "backends/database.h"
 #include "debuglog.h"
+#include "api/leafpostlist.h"
 #include "api/queryinternal.h"
 #include "submatch.h"
 #include "xapian/enquire.h"
 #include "xapian/weight.h"
 
 #include <map>
+
+class LeafPostList;
 
 class LocalSubMatch : public SubMatch {
     /// Don't allow assignment.

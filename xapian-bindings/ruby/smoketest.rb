@@ -6,7 +6,7 @@
 # Originally based on smoketest.php from the PHP4 bindings.
 #
 # Copyright (C) 2006 Networked Knowledge Systems, Inc.
-# Copyright (C) 2008,2009,2010,2011 Olly Betts
+# Copyright (C) 2008,2009,2010,2011,2016 Olly Betts
 # Copyright (C) 2010 Richard Boulton
 #
 # This program is free software; you can redistribute it and/or
@@ -249,10 +249,6 @@ class XapianSmoketest < Test::Unit::TestCase
   end
 
   def test_016_compactor
-    if ! Dir.respond_to?("mktmpdir")
-      # Older Ruby 1.8.x doesn't have Dir.mktmpdir() - just skip if so.
-      return
-    end
     Dir.mktmpdir("smokerb") {|tmpdir|
         db1path = "#{tmpdir}db1"
         db2path = "#{tmpdir}db2"
@@ -267,7 +263,7 @@ class XapianSmoketest < Test::Unit::TestCase
         db1.set_metadata('key', '1')
         db1.set_metadata('key1', '1')
         db1.add_document(doc1)
-        db1.flush()
+        db1.commit()
 
         db2 = Xapian::WritableDatabase.new(db2path, Xapian::DB_CREATE_OR_OVERWRITE)
         doc2 = Xapian::Document.new()
@@ -277,7 +273,7 @@ class XapianSmoketest < Test::Unit::TestCase
         db2.set_metadata('key', '2')
         db2.set_metadata('key2', '2')
         db2.add_document(doc2)
-        db2.flush()
+        db2.commit()
 
         # Compact with the default compactor
         # Metadata conflicts are resolved by picking the first value

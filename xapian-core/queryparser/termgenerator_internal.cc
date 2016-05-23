@@ -33,11 +33,13 @@
 #include "stringutils.h"
 
 #include <algorithm>
+#include <cmath>
 #include <deque>
 #include <limits>
 #include <list>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "cjk-tokenizer.h"
 

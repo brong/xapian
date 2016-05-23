@@ -1,7 +1,7 @@
 /** @file glass_freelist.cc
  * @brief Glass freelist
  */
-/* Copyright 2014,2015 Olly Betts
+/* Copyright 2014,2015,2016 Olly Betts
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -27,10 +27,11 @@
 #include "xapian/error.h"
 
 #include "omassert.h"
-#include "unaligned.h"
+#include "wordaccess.h"
 #include <cstring>
 
 using namespace std;
+using namespace Glass;
 
 // Allow forcing the freelist to be shorter to tickle bugs.
 // FIXME: Sort out a way we can set this dynamically while running the
@@ -51,6 +52,9 @@ using namespace std;
  */
 const unsigned C_BASE = 8;
 
+/// Invalid freelist block value, so we can detect overreading bugs, etc.
+const uint4 UNUSED = static_cast<uint4>(-1);
+
 void
 GlassFreeList::read_block(const GlassTable * B, uint4 n, byte * ptr)
 {
@@ -63,7 +67,7 @@ void
 GlassFreeList::write_block(const GlassTable * B, uint4 n, byte * ptr, uint4 rev)
 {
     SET_REVISION(ptr, rev);
-    setint4(ptr, 4, 0);
+    aligned_write4(ptr + 4, 0);
     SET_LEVEL(ptr, LEVEL_FREELIST);
     B->write_block(n, ptr, flw_appending);
 }
@@ -77,7 +81,7 @@ GlassFreeList::get_block(const GlassTable *B, uint4 block_size,
     }
 
     if (p == 0) {
-	if (fl.n == glass_block_t(-1)) {
+	if (fl.n == UNUSED) {
 	    throw Xapian::DatabaseCorruptError("Freelist pointer invalid");
 	}
 	// Actually read the current freelist block.
@@ -87,11 +91,11 @@ GlassFreeList::get_block(const GlassTable *B, uint4 block_size,
 
     // Either the freelist end is in this block, or this freelist block has a
     // next pointer.
-    Assert(fl.n == fl_end.n || getint4(p, FREELIST_END - 4) != -1);
+    Assert(fl.n == fl_end.n || aligned_read4(p + FREELIST_END - 4) != UNUSED);
 
     if (fl.c != FREELIST_END - 4) {
-	uint4 blk = getint4(p, fl.c);
-	if (blk == uint4(-1))
+	uint4 blk = aligned_read4(p + fl.c);
+	if (blk == UNUSED)
 	    throw Xapian::DatabaseCorruptError("Ran off end of freelist (" + str(fl.n) + ", " + str(fl.c) + ")");
 	fl.c += 4;
 	return blk;
@@ -101,8 +105,8 @@ GlassFreeList::get_block(const GlassTable *B, uint4 block_size,
     // started a new one.
     uint4 old_fl_blk = fl.n;
 
-    fl.n = getint4(p, fl.c);
-    if (fl.n == glass_block_t(-1)) {
+    fl.n = aligned_read4(p + fl.c);
+    if (fl.n == UNUSED) {
 	throw Xapian::DatabaseCorruptError("Freelist next pointer invalid");
     }
     // Allow for mini-header at start of freelist block.
@@ -111,7 +115,7 @@ GlassFreeList::get_block(const GlassTable *B, uint4 block_size,
 
     // Either the freelist end is in this block, or this freelist block has
     // a next pointer.
-    Assert(fl.n == fl_end.n || getint4(p, FREELIST_END - 4) != -1);
+    Assert(fl.n == fl_end.n || aligned_read4(p + FREELIST_END - 4) != UNUSED);
 
     if (blk_to_free) {
 	Assert(*blk_to_free == BLK_UNUSED);
@@ -128,33 +132,33 @@ GlassFreeList::walk(const GlassTable *B, uint4 block_size, bool inclusive)
 {
     if (fl == fl_end) {
 	// It's expected that the caller checks !empty() first.
-	return static_cast<uint4>(-1);
+	return UNUSED;
     }
 
     if (p == 0) {
-	if (fl.n == glass_block_t(-1)) {
+	if (fl.n == UNUSED) {
 	    throw Xapian::DatabaseCorruptError("Freelist pointer invalid");
 	}
 	p = new byte[block_size];
 	read_block(B, fl.n, p);
 	if (inclusive) {
-	    Assert(fl.n == fl_end.n || getint4(p, FREELIST_END - 4) != -1);
+	    Assert(fl.n == fl_end.n || aligned_read4(p + FREELIST_END - 4) != UNUSED);
 	    return fl.n;
 	}
     }
 
     // Either the freelist end is in this block, or this freelist block has
     // a next pointer.
-    Assert(fl.n == fl_end.n || getint4(p, FREELIST_END - 4) != -1);
+    Assert(fl.n == fl_end.n || aligned_read4(p + FREELIST_END - 4) != UNUSED);
 
     if (fl.c != FREELIST_END - 4) {
-	uint4 blk = getint4(p, fl.c);
+	uint4 blk = aligned_read4(p + fl.c);
 	fl.c += 4;
 	return blk;
     }
 
-    fl.n = getint4(p, fl.c);
-    if (fl.n == glass_block_t(-1)) {
+    fl.n = aligned_read4(p + fl.c);
+    if (fl.n == UNUSED) {
 	throw Xapian::DatabaseCorruptError("Freelist next pointer invalid");
     }
     // Allow for mini-header at start of freelist block.
@@ -163,7 +167,7 @@ GlassFreeList::walk(const GlassTable *B, uint4 block_size, bool inclusive)
 
     // Either the freelist end is in this block, or this freelist block has
     // a next pointer.
-    Assert(fl.n == fl_end.n || getint4(p, FREELIST_END - 4) != -1);
+    Assert(fl.n == fl_end.n || aligned_read4(p + FREELIST_END - 4) != UNUSED);
 
     if (inclusive)
 	return fl.n;
@@ -195,12 +199,12 @@ GlassFreeList::mark_block_unused(const GlassTable * B, uint4 block_size, uint4 b
 	    fl = fl_end = flw;
 	}
 	flw_appending = (n == first_unused_block - 1);
-	setint4(pw, FREELIST_END - 4, -1);
+	aligned_write4(pw + FREELIST_END - 4, UNUSED);
     } else if (flw.c == FREELIST_END - 4) {
 	// blk is free *after* the current revision gets released, so we can't
 	// just use blk as the next block in the freelist chain.
 	uint4 n = get_block(B, block_size, &blk_to_free);
-	setint4(pw, flw.c, n);
+	aligned_write4(pw + flw.c, n);
 #ifdef GLASS_FREELIST_SIZE
 	if (block_size != FREELIST_END) {
 	    memset(pw + FREELIST_END, 0, block_size - FREELIST_END);
@@ -210,15 +214,15 @@ GlassFreeList::mark_block_unused(const GlassTable * B, uint4 block_size, uint4 b
 	if (p && flw.n == fl.n) {
 	    // FIXME: share and refcount?
 	    memcpy(p, pw, block_size);
-	    Assert(fl.n == fl_end.n || getint4(p, FREELIST_END - 4) != -1);
+	    Assert(fl.n == fl_end.n || aligned_read4(p + FREELIST_END - 4) != UNUSED);
 	}
 	flw.n = n;
 	flw.c = C_BASE;
 	flw_appending = (n == first_unused_block - 1);
-	setint4(pw, FREELIST_END - 4, -1);
+	aligned_write4(pw + FREELIST_END - 4, UNUSED);
     }
 
-    setint4(pw, flw.c, blk);
+    aligned_write4(pw + flw.c, blk);
     flw.c += 4;
 
     if (blk_to_free != BLK_UNUSED)
@@ -239,7 +243,7 @@ GlassFreeList::commit(const GlassTable * B, uint4 block_size)
 	if (p && flw.n == fl.n) {
 	    // FIXME: share and refcount?
 	    memcpy(p, pw, block_size);
-	    Assert(fl.n == fl_end.n || getint4(p, FREELIST_END - 4) != -1);
+	    Assert(fl.n == fl_end.n || aligned_read4(p + FREELIST_END - 4) != UNUSED);
 	}
 	flw_appending = true;
 	fl_end = flw;

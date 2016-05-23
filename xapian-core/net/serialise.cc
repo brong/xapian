@@ -33,6 +33,7 @@
 #include "weight/weightinternal.h"
 
 #include "autoptr.h"
+#include <set>
 #include <string>
 
 using namespace std;
@@ -206,8 +207,8 @@ unserialise_mset(const char * p, const char * p_end)
 string
 serialise_rset(const Xapian::RSet &rset)
 {
-    const set<Xapian::docid> & items = rset.internal->get_items();
     string result;
+    const set<Xapian::docid> & items = rset.internal->get_items();
     set<Xapian::docid>::const_iterator i;
     Xapian::docid lastdid = 0;
     for (i = items.begin(); i != items.end(); ++i) {

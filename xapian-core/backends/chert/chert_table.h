@@ -2,7 +2,7 @@
  * @brief Btree implementation
  */
 /* Copyright 1999,2000,2001 BrightStation PLC
- * Copyright 2002,2003,2004,2005,2006,2007,2008,2009,2010,2012,2015 Olly Betts
+ * Copyright 2002,2003,2004,2005,2006,2007,2008,2009,2010,2012,2015,2016 Olly Betts
  * Copyright 2008 Lemur Consulting Ltd
  *
  * This program is free software; you can redistribute it and/or
@@ -34,14 +34,64 @@
 #include "omassert.h"
 #include "str.h"
 #include "stringutils.h"
-#include "unaligned.h"
+#include "wordaccess.h"
 
 #include <algorithm>
 #include <string>
 
 #include <zlib.h>
 
-#define DONT_COMPRESS -1
+// FIXME: 65536 in Asserts below is the max chert block size.  We should
+// abstract this out, and use the current block_size to catch overruns better.
+inline int
+getint1(const unsigned char *p, int c)
+{
+    AssertRel(c, >=, 0);
+    AssertRel(c, <, 65536);
+    return p[c];
+}
+
+inline void
+setint1(unsigned char *p, int c, int x)
+{
+    AssertRel(c, >=, 0);
+    AssertRel(c, <, 65536);
+    p[c] = x;
+}
+
+inline int
+getint2(const unsigned char *p, int c)
+{
+    AssertRel(c, >=, 0);
+    AssertRel(c, <, 65536 - 1);
+    return unaligned_read2(p + c);
+}
+
+inline void
+setint2(unsigned char *p, int c, int x)
+{
+    AssertRel(c, >=, 0);
+    AssertRel(c, <, 65536 - 1);
+    unaligned_write2(p + c, uint16_t(x));
+}
+
+inline int
+getint4(const unsigned char *p, int c)
+{
+    AssertRel(c, >=, 0);
+    AssertRel(c, <, 65536 - 3);
+    return unaligned_read4(p + c);
+}
+
+inline void
+setint4(unsigned char *p, int c, int x)
+{
+    AssertRel(c, >=, 0);
+    AssertRel(c, <, 65536 - 3);
+    unaligned_write4(p + c, uint32_t(x));
+}
+
+const int DONT_COMPRESS = -1;
 
 /** The largest possible value of a key_len.
  *
@@ -52,10 +102,10 @@
 
 /** Even for items of at maximum size, it must be possible to get this number of
  *  items in a block */
-#define BLOCK_CAPACITY 4
+const size_t BLOCK_CAPACITY = 4;
 
 // FIXME: This named constant probably isn't used everywhere it should be...
-#define BYTES_PER_BLOCK_NUMBER 4
+const int BYTES_PER_BLOCK_NUMBER = 4;
 
 /*  The B-tree blocks have a number of internal lengths and offsets held in 1, 2
     or 4 bytes. To make the coding a little clearer,
@@ -67,15 +117,15 @@
        C2      the 2 byte counter that ends each key and begins each tag
 */
 
-#define K1 1
-#define I2 2
-#define D2 2
-#define C2 2
+const int K1 = 1;
+const int I2 = 2;
+const int D2 = 2;
+const int C2 = 2;
 
 /*  and when getting K1 or setting D2, we use getK, setD defined as: */
 
-#define getK(p, c)    getint1(p, c)
-#define setD(p, c, x) setint2(p, c, x)
+inline int getK(const unsigned char *p, int c) { return getint1(p, c); }
+inline void setD(unsigned char *p, int c, int x) { setint2(p, c, x); }
 
 /* if you've been reading the comments from the top, the next four procedures
    will not cause any headaches.
@@ -97,22 +147,22 @@
    components_of(p, c) returns the number marked 'C' above,
 */
 
-#define REVISION(b)      static_cast<unsigned int>(getint4(b, 0))
-#define GET_LEVEL(b)     getint1(b, 4)
-#define MAX_FREE(b)      getint2(b, 5)
-#define TOTAL_FREE(b)    getint2(b, 7)
-#define DIR_END(b)       getint2(b, 9)
-#define DIR_START        11
+inline unsigned REVISION(const byte * b) { return aligned_read4(b); }
+inline int GET_LEVEL(const byte * b) { return getint1(b, 4); }
+inline int MAX_FREE(const byte * b) { return getint2(b, 5); }
+inline int TOTAL_FREE(const byte * b) { return getint2(b, 7); }
+inline int DIR_END(const byte * b) { return getint2(b, 9); }
+const int DIR_START = 11;
 
-#define SET_REVISION(b, x)      setint4(b, 0, x)
-#define SET_LEVEL(b, x)         setint1(b, 4, x)
-#define SET_MAX_FREE(b, x)      setint2(b, 5, x)
-#define SET_TOTAL_FREE(b, x)    setint2(b, 7, x)
-#define SET_DIR_END(b, x)       setint2(b, 9, x)
+inline void SET_REVISION(byte * b, uint4 rev) { aligned_write4(b, rev); }
+inline void SET_LEVEL(byte * b, int x) { setint1(b, 4, x); }
+inline void SET_MAX_FREE(byte * b, int x) { setint2(b, 5, x); }
+inline void SET_TOTAL_FREE(byte * b, int x) { setint2(b, 7, x); }
+inline void SET_DIR_END(byte * b, int x) { setint2(b, 9, x); }
 
 // The item size is stored in 2 bytes, but the top bit is used to store a flag
 // for "is the tag data compressed".
-#define CHERT_MAX_ITEM_SIZE 0x7fff
+const size_t CHERT_MAX_ITEM_SIZE = 0x7fff;
 
 class Key {
     const byte *p;
@@ -272,7 +322,7 @@ public:
 // Allow for BTREE_CURSOR_LEVELS levels in the B-tree.
 // With 10, overflow is practically impossible
 // FIXME: but we want it to be completely impossible...
-#define BTREE_CURSOR_LEVELS 10
+const int BTREE_CURSOR_LEVELS = 10;
 
 /** Class managing a Btree table in a Chert database.
  *

@@ -411,7 +411,12 @@ Query::Internal::unserialise(const char ** p, const char * end,
 	return NULL;
     unsigned char ch = *(*p)++;
     switch (ch >> 5) {
-	case 4: case 5: case 6: case 7: { // Multi-way branch
+	case 4: case 5: case 6: case 7: {
+	    // Multi-way branch
+	    //
+	    // 1ccccnnn where:
+	    //   nnn -> n_subqs (0 means encoded value follows)
+	    //   cccc -> code (which OP_XXX)
 	    size_t n_subqs = ch & 0x07;
 	    if (n_subqs == 0) {
 		decode_length(p, end, n_subqs);
@@ -470,6 +475,15 @@ Query::Internal::unserialise(const char ** p, const char * end,
 	    return result;
 	}
 	case 2: case 3: { // Term
+	    // Term
+	    //
+	    // 01ccLLLL where:
+	    //   LLLL -> length (0 means encoded value follows)
+	    //   cc -> code:
+	    //     0: wqf = 0; pos = 0
+	    //     1: wqf = 1; pos = 0
+	    //     2: wqf = 1; pos -> encoded value follows
+	    //     3: wqf -> encoded value follows; pos -> encoded value follows
 	    size_t len = ch & 0x0f;
 	    if (len == 0) {
 		decode_length(p, end, len);
@@ -492,7 +506,14 @@ Query::Internal::unserialise(const char ** p, const char * end,
 
 	    return new Xapian::Internal::QueryTerm(term, wqf, pos);
 	}
-	case 1: { // OP_VALUE_RANGE or OP_VALUE_GE or OP_VALUE_LE
+	case 1: {
+	    // OP_VALUE_RANGE or OP_VALUE_GE or OP_VALUE_LE
+	    //
+	    // 001tssss where:
+	    //   ssss -> slot number (15 means encoded value follows)
+	    //   t -> op:
+	    //     0: OP_VALUE_RANGE (or OP_VALUE_LE if begin empty)
+	    //     1: OP_VALUE_GE
 	    Xapian::valueno slot = ch & 15;
 	    if (slot == 15) {
 		decode_length(p, end, slot);
@@ -516,7 +537,13 @@ Query::Internal::unserialise(const char ** p, const char * end,
 	    return new Xapian::Internal::QueryValueRange(slot, begin, end_);
 	}
 	case 0: {
-	    switch (ch & 0x0f) {
+	    // Other operators
+	    //
+	    //   000ttttt where:
+	    //     ttttt -> encodes which OP_XXX
+	    switch (ch & 0x1f) {
+		case 0x00: // OP_INVALID
+		    return new Xapian::Internal::QueryInvalid();
 		case 0x0b: { // Wildcard
 		    if (*p == end)
 			throw SerialisationError("not enough data");
@@ -554,7 +581,7 @@ Query::Internal::unserialise(const char ** p, const char * end,
 			reg_source->unserialise_with_registry(string(*p, len),
 							      reg);
 		    *p += len;
-		    return new Xapian::Internal::QueryPostingSource(source, true);
+		    return new Xapian::Internal::QueryPostingSource(source->release());
 		}
 		case 0x0d: {
 		    using Xapian::Internal::QueryScaleWeight;
@@ -634,24 +661,11 @@ QueryTerm::get_description() const
     return desc;
 }
 
-QueryPostingSource::QueryPostingSource(PostingSource * source_, bool owned_)
-    : source(source_), owned(owned_)
+QueryPostingSource::QueryPostingSource(PostingSource * source_)
+    : source(source_)
 {
-    if (!source)
+    if (!source_)
 	throw Xapian::InvalidArgumentError("source parameter can't be NULL");
-    if (!owned) {
-	PostingSource * cloned_source = source->clone();
-	if (cloned_source) {
-	    source = cloned_source;
-	    owned = true;
-	}
-    }
-}
-
-QueryPostingSource::~QueryPostingSource()
-{
-    if (owned)
-	delete source;
 }
 
 Query::op
@@ -717,11 +731,11 @@ PostingIterator::Internal *
 QueryPostingSource::postlist(QueryOptimiser * qopt, double factor) const
 {
     LOGCALL(QUERY, PostingIterator::Internal *, "QueryPostingSource::postlist", qopt | factor);
-    Assert(source);
+    Assert(source.get());
     if (factor != 0.0)
 	qopt->inc_total_subqs();
     Xapian::Database wrappeddb(new ConstDatabaseWrapper(&(qopt->db)));
-    RETURN(new ExternalPostList(wrappeddb, source, factor, qopt->matcher));
+    RETURN(new ExternalPostList(wrappeddb, source.get(), factor, qopt->matcher));
 }
 
 PostingIterator::Internal *
@@ -1805,6 +1819,30 @@ string
 QueryMax::get_description() const
 {
     return get_description_helper(" MAX ");
+}
+
+Xapian::Query::op
+QueryInvalid::get_type() const XAPIAN_NOEXCEPT
+{
+    return Xapian::Query::OP_INVALID;
+}
+
+PostingIterator::Internal *
+QueryInvalid::postlist(QueryOptimiser *, double) const
+{
+    throw Xapian::InvalidOperationError("Query is invalid");
+}
+
+void
+QueryInvalid::serialise(std::string & result) const
+{
+    result += static_cast<char>(0x00);
+}
+
+string
+QueryInvalid::get_description() const
+{
+    return "<INVALID>";
 }
 
 }

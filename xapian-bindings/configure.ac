@@ -4,7 +4,7 @@ dnl See xapian-core's HACKING document for details of the reasons for required
 dnl versions.
 AC_PREREQ([2.63])
 
-m4_define([project_version], [1.3.4])
+m4_define([project_version], [1.3.6])
 AC_INIT([xapian-bindings], project_version, [https://xapian.org/bugs])
 
 dnl See xapian-core's HACKING document for details of the reasons for required
@@ -186,6 +186,7 @@ if test x$USE_MAINTAINER_MODE = xyes; then
   fi
   dnl Check for new enough SWIG.
   dnl
+  dnl 3.0.6 fixes compiling the Perl bindings under C++11 ("seed" macro issue).
   dnl 3.0.8 fixes conversion of integers large than an int in Python 3.
   v=`$SWIG -version 2>&1|sed 's/^SWIG Version \([[0-9\.]]*\).*/\1/p;d'`
   case $v in
@@ -491,7 +492,7 @@ case $BINDINGS in
 *python*)
   AC_PATH_PROG(SPHINX_BUILD, sphinx-build, [])
   if test -z "$SPHINX_BUILD" ; then
-    AC_MSG_ERROR([sphinx-build is required to build python documentation (try packages python-sphinx or python3-sphinx)])
+    AC_MSG_ERROR([sphinx-build is required to build python documentation (try packages python-sphinx and/or python3-sphinx)])
   fi
   ;;
 esac
@@ -505,6 +506,13 @@ if test no != "$with_php" ; then
     AC_MSG_CHECKING([$PHP_CONFIG version])
     version=`$PHP_CONFIG --version 2>/dev/null`
     case $version in
+    7.*)
+      AC_MSG_RESULT([$version (not supported, SWIG doesn't support PHP7 yet)])
+      if test yes = "$with_php" ; then
+	AC_MSG_ERROR([SWIG doesn't yet support PHP7 ($PHP_CONFIG reports version $version)])
+      fi
+      with_php=no
+      ;;
     [[01234].*|5.[01234].*])
       AC_MSG_RESULT([$version (not supported, need PHP >= 5.5)])
       if test yes = "$with_php" ; then
@@ -549,11 +557,23 @@ if test no != "$with_php" ; then
 	PHP=`$PHP_CONFIG --php-binary 2>/dev/null`
 	if test x"$PHP" != x ; then
 	  if $PHP -r 'exit(0);' 2> /dev/null ; then
-	    AC_MSG_RESULT([$PHP])
+	    if $PHP -r 'exit(PHP_MAJOR_VERSION==5?0:1);' 2> /dev/null ; then
+	      AC_MSG_RESULT([$PHP])
+	    else
+	      dnl We get /usr/bin/php on Debian, which might be PHP7:
+	      dnl https://bugs.debian.org/819139
+	      if ${PHP}5 -r 'exit(PHP_MAJOR_VERSION==5?0:1);' 2> /dev/null ; then
+		PHP=${PHP}5
+		AC_MSG_RESULT([$PHP])
+	      else
+		AC_MSG_RESULT([no ($PHP isn't PHP5)])
+		PHP=
+	      fi
+	    fi
 	  else
 	    AC_MSG_RESULT([no ($PHP does not work)])
 	    PHP=
-          fi
+	  fi
 	else
 	  AC_MSG_RESULT([not found])
 	fi
@@ -714,14 +734,6 @@ if test no != "$with_csharp" ; then
       fi
     fi
     if test -z "$CSC" ; then
-      dnl gmcs, smcs, and dmcs are versions of the Mono CSharp compiler
-      dnl targeting various runtime versions, deprecated in favour of mcs
-      dnl (checked for above) as of Mono 2.11.
-      dnl
-      dnl cscc is the Portable.NET CSharp compiler.
-      AC_PATH_PROGS(CSC, [dmcs smcs gmcs cscc], [])
-    fi
-    if test -z "$CSC" ; then
       dnl csc is the Microsoft CSharp compiler.
       AC_PATH_PROGS(CSC, [csc], [])
       if test -n "$CSC" ; then
@@ -747,7 +759,7 @@ if test no != "$with_csharp" ; then
       AC_PATH_PROGS(GACUTIL, ["$GACUTIL"], [])
     fi
     if test -z "$GACUTIL" ; then
-      AC_PATH_PROGS(GACUTIL, [cli-gacutil gacutil ilgac], [])
+      AC_PATH_PROGS(GACUTIL, [cli-gacutil gacutil], [])
     fi
 
     AC_ARG_VAR(SN, [sn utility to use for CSharp bindings])
@@ -756,13 +768,6 @@ if test no != "$with_csharp" ; then
     fi
     if test -z "$SN" ; then
       AC_PATH_PROGS(SN, [cli-sn sn], [])
-    fi
-    if test -z "$SN" ; then
-      case $GACUTIL in
-      dnl Portable.net doesn't support strong naming yet and ilgac doesn't
-      dnl require assemblies to be strong named before adding them to the GAC.
-      *ilgac*) SN=/bin/true ;;
-      esac
     fi
     if test -n "$GACUTIL" -a -n "$SN" ; then
       AC_MSG_CHECKING([whether the CSharp compiler works])
@@ -798,13 +803,8 @@ if test no != "$with_csharp" ; then
 
 	AC_MSG_CHECKING([for extra flags for $GACUTIL])
 	GACUTIL_FLAGS='/package $(ASSEMBLY) /gacdir $(libdir) /root $(DESTDIR)$(libdir)'
-	case $GACUTIL in
-	*ilgac*) ;;
-	*)
-	  dnl Microsoft's gacutil accepts fewer options than Mono's
-	  $GACUTIL /\?|grep '\<Mono\>' >/dev/null || GACUTIL_FLAGS=
-	  ;;
-	esac
+	dnl Microsoft's gacutil accepts fewer options than Mono's
+	$GACUTIL /\?|grep '\<Mono\>' >/dev/null || GACUTIL_FLAGS=
 	AC_SUBST([GACUTIL_FLAGS])
 	if test -z "$GACUTIL_FLAGS" ; then
 	  AC_MSG_RESULT([no])
@@ -963,16 +963,10 @@ if test no != "$with_ruby" ; then
   fi
   AC_ARG_VAR(RUBY, [Ruby interpreter])
   if test -n "$RUBY" ; then
-    dnl Require Ruby 1.8 or newer.  Paul says:
-    dnl  I'm using 1.8.4.  I imagine anything in the 1.8.x series will be fine,
-    dnl  not sure about 1.6 but hardly anyone uses <1.8.
-    dnl
-    dnl Brief testing with Ruby 1.6.8 show the bindings probably work there,
-    dnl but smoketest.rb doesn't because the test/unit module isn't available.
+    dnl Require Ruby 2.1 or newer.
     AC_MSG_CHECKING([$RUBY version])
     dnl RUBY_VERSION works with 1.6.  Once we've checked we have at least 1.8
-    dnl we can safely use RbConfig below (RbConfig requires Ruby 1.8; Config
-    dnl gives a deprecation warning with Ruby 1.9.3).
+    dnl we can safely use RbConfig below (RbConfig requires Ruby 1.8).
     version=`$RUBY -e 'print RUBY_VERSION' 2>/dev/null`
     case $version in
     "")
@@ -982,10 +976,10 @@ if test no != "$with_ruby" ; then
       fi
       RUBY=
       ;;
-    [0.*|1.[0-7]|1.[0-7].*])
+    [[01].*|2.0.*])
       AC_MSG_RESULT([$version (too old)])
       if test yes = "$with_ruby" ; then
-	AC_MSG_ERROR([Only Ruby 1.8 or newer is supported ($RUBY is $version)])
+	AC_MSG_ERROR([Only Ruby 2.1 or newer is supported ($RUBY is $version)])
       fi
       RUBY=
       ;;
@@ -994,8 +988,8 @@ if test no != "$with_ruby" ; then
       AC_MSG_RESULT([$version])
       AC_ARG_VAR(RUBY_INC, [Directory where ruby.h can be found])
       if test -z "$RUBY_INC" ; then
-	dnl Ruby 1.9 added rubyhdrdir; for older Ruby we use archdir.
-	[RUBY_INC=`$RUBY -rrbconfig -e 'print RbConfig::CONFIG["rubyhdrdir"] || RbConfig::CONFIG["archdir"]'`]
+	dnl Ruby 1.9 added rubyhdrdir.
+	[RUBY_INC=`$RUBY -rrbconfig -e 'print RbConfig::CONFIG["rubyhdrdir"]'`]
       fi
       AC_SUBST(RUBY_INC)
       dnl Check that ruby.h is there, which is a good way to check that
@@ -1004,34 +998,10 @@ if test no != "$with_ruby" ; then
       if test -f "$RUBY_INC/ruby.h" ; then
 	AC_MSG_RESULT(yes)
 
-	AC_MSG_CHECKING([for ruby/io.h])
-	rm -f ruby/rubyio.h
-	if test -f "$RUBY_INC/ruby/io.h" ; then
-	  AC_MSG_RESULT(yes)
-
-	  dnl In a VPATH build, the ruby subdirectory won't exist the first
-	  dnl time.
-	  AS_MKDIR_P([ruby])
-
-	  dnl Newer Ruby has ruby/io.h - older has rubyio.h.  Ruby doesn't
-	  dnl seem to provide any way to generate code which works with
-	  dnl both (and even the version number isn't a discriminator as
-	  dnl Debian etch has 1.9 without ruby/io.h).  The SWIG version
-	  dnl we're currently using assumes rubyio.h exists and luckily
-	  dnl it includes it with "", so we can just drop a rubyio.h
-	  dnl wrapper alongside ruby/xapian_wrap.cc.
-	  echo '#include <ruby/io.h>' > ruby/rubyio.h
-	else
-	  AC_MSG_RESULT(no)
-	fi
-
-	AC_ARG_VAR(RUBY_INC_ARCH, [Directory where ruby/config.h can be found (needed from Ruby 1.9)])
+	AC_ARG_VAR(RUBY_INC_ARCH, [Directory where ruby/config.h can be found])
 	if test -z "$RUBY_INC_ARCH" ; then
-	  dnl Ruby 2.0 and later Ruby 1.9 have rubyarchhdrdir; for early 1.9,
-	  dnl use rubyhdrdir+"/"+arch.
-	  [RUBY_INC_ARCH=`$RUBY -rrbconfig -e 'd = RbConfig::CONFIG["rubyhdrdir"]; print RbConfig::CONFIG["rubyarchhdrdir"] || (d ? d + "/" + RbConfig::CONFIG["arch"] : "")'`]
-	  dnl Ruby 1.8 has no rubyhdrdir, so set RUBY_INC_ARCH=RUBY_INC.
-	  test x"$RUBY_INC_ARCH" != x || RUBY_INC_ARCH=$RUBY_INC
+	  dnl Ruby 2.0 and later have rubyarchhdrdir.
+	  [RUBY_INC_ARCH=`$RUBY -rrbconfig -e 'print RbConfig::CONFIG["rubyarchhdrdir"]'`]
 	fi
 	AC_SUBST(RUBY_INC_ARCH)
 

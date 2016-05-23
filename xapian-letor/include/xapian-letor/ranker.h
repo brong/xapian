@@ -18,38 +18,40 @@
  * USA
  */
 
-#ifndef SVMRANKER_H
-#define SVMRANKER_H
+#ifndef RANKER_H
+#define RANKER_H
 
 
 #include <xapian.h>
-#include <xapian/base.h>
+#include <xapian/intrusive_ptr.h>
 #include <xapian/types.h>
 #include <xapian/visibility.h>
 
-#include "ranker.h"
 #include "ranklist.h"
-//#include "evalmetric.h"
 
 #include <list>
 #include <map>
+
 
 using namespace std;
 
 
 namespace Xapian {
 
-class XAPIAN_VISIBILITY_DEFAULT SVMRanker: public Ranker {
+class XAPIAN_VISIBILITY_DEFAULT Ranker {
 
-    string model = null;
-    double[] weight;
+
+    std::list<Xapian::RankList> traindata;
+    std::list<Xapian::RankList> validata;
+    std::list<Xapian::RankList> testdata;
+
   public:
-    SVMRanker() {};
+    Ranker();
 
     /* Override all the four methods below in the ranker sub-classes files
      * wiz svmranker.cc , listnet.cc, listmle.cc and so on
      */
-    Xapian::RankList rank(const Xapian::RankList & rl);
+    std::list<double> rank(const Xapian::RankList & rl);
 
     void learn_model();
 
@@ -57,9 +59,12 @@ class XAPIAN_VISIBILITY_DEFAULT SVMRanker: public Ranker {
 
     void save_model();
 
-    double score(const Xapian::FeatureVector & fv);
+    /* This method should read the letor format data and transform into the list of
+     * Xapian::RankList format
+     */
+    std::list<Xapian::RankList> load_data(const std::string & data_file);
 
 };
 
 }
-#endif /* SVMRANKER_H */
+#endif /* RANKER_H */

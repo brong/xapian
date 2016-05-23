@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-my $copyright = 'Copyright (C) 2007,2009,2012,2014,2015 Olly Betts';
+my $copyright = 'Copyright (C) 2007,2009,2012,2014,2015,2016 Olly Betts';
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License as
@@ -36,9 +36,12 @@ my %uncopyableclasses = (
     'ValueCountMatchSpy' => '0',
     'ValueMapPostingSource' => '0',
     'FixedWeightPostingSource' => '0',
+    'DateRangeProcessor' => '0',
     'DateValueRangeProcessor' => '0',
     'MultiValueKeyMaker' => '',
+    'NumberRangeProcessor' => '0, ""',
     'NumberValueRangeProcessor' => '0, ""',
+    'RangeProcessor' => '',
     'SimpleStopper' => '',
     'StringValueRangeProcessor' => '0'
 );
@@ -48,7 +51,7 @@ my %copyableclasses = (
     'Document' => '',
     'ESet' => '',
     'ESetIterator' => '',
-    'Enquire' => 'Xapian::InMemory::open()',
+    'Enquire' => 'Xapian::Database(std::string(), Xapian::DB_BACKEND_INMEMORY)',
     'MSet' => '',
     'MSetIterator' => '',
     'PositionIterator' => '',
@@ -65,9 +68,12 @@ my %copyableclasses = (
 );
 
 my %no_get_description = (
+    'DateRangeProcessor' => 1,
     'DateValueRangeProcessor' => 1,
     'MultiValueKeyMaker' => 1,
+    'NumberRangeProcessor' => 1,
     'NumberValueRangeProcessor' => 1,
+    'RangeProcessor' => 1,
     'Registry' => 1,
     'StringValueRangeProcessor' => 1,
     'BB2Weight' => 1,
@@ -109,6 +115,7 @@ print <<"END";
 
 #include "api_generated.h"
 
+#define XAPIAN_DEPRECATED(D) D
 #include <xapian.h>
 
 #include "apitest.h"
@@ -142,7 +149,7 @@ END
 
 for my $class (sort keys %copyableclasses) {
     my $params = $copyableclasses{$class};
-    if ($params =~ /InMemory/) {
+    if ($params =~ /INMEMORY/) {
 	print "#ifdef XAPIAN_HAS_INMEMORY_BACKEND\n";
     }
     if ($params ne '') {
@@ -155,7 +162,7 @@ for my $class (sort keys %copyableclasses) {
     print "    TEST(!$object.get_description().empty());\n" if $get_description;
     print "    $class copy_$object($object);\n";
     print "    $object = copy_$object;\n";
-    if ($params =~ /InMemory/) {
+    if ($params =~ /INMEMORY/) {
 	print "#endif\n";
     }
     print "\n";

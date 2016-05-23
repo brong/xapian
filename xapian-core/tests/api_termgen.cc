@@ -1,6 +1,7 @@
-/* termgentest.cc: Tests of Xapian::TermGenerator & SnippetGenerator
- *
- * Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2015 Olly Betts
+/** @file api_termgen.cc
+ * @brief Tests of Xapian::TermGenerator
+ */
+/* Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009,2010,2011,2012,2013,2015,2016 Olly Betts
  * Copyright (C) 2007 Lemur Consulting Ltd
  *
  * This program is free software; you can redistribute it and/or
@@ -21,16 +22,16 @@
 
 #include <config.h>
 
+#include "api_termgen.h"
+
 #include <xapian.h>
 
-#include <iostream>
 #include <string>
 
+#include "apitest.h"
 #include "str.h"
 #include "testsuite.h"
 #include "testutils.h"
-
-#include "safesysstat.h" // For mkdir().
 
 using namespace std;
 
@@ -100,7 +101,7 @@ static const test test_simple[] = {
     { "prefix=XA", "hello", "XAhello[1] ZXAhello:1" },
     { "prefix=XA", "hello World Test", "XAhello[1] XAtest[3] XAworld[2] ZXAhello:1 ZXAtest:1 ZXAworld:1" },
 
-    // Assorted tests, corresponding to tests in queryparsertest.
+    // Assorted tests, corresponding to tests in api_queryparser.cc.
     { "prefix=", "time_t", "Ztime_t:1 time_t[1]" },
     { "", "stock -cooking", "Zcook:1 Zstock:1 cooking[2] stock[1]" },
     { "", "d- school report", "Zd:1 Zreport:1 Zschool:1 d[1] report[3] school[2]" },
@@ -668,7 +669,7 @@ format_doc_termlist(const Xapian::Document & doc)
 	    // If we've got a position list, only display the wdf if it's not
 	    // the length of the positionlist.
 	    if (it.get_wdf() != it.positionlist_count()) {
-	        output += ':';
+		output += ':';
 		output += str(it.get_wdf());
 	    }
 	    char ch = '[';
@@ -688,8 +689,7 @@ format_doc_termlist(const Xapian::Document & doc)
     return output;
 }
 
-static bool test_termgen1()
-{
+DEFINE_TESTCASE(termgen1, !backend) {
     Xapian::TermGenerator termgen;
     Xapian::Document doc;
     termgen.set_document(doc);
@@ -784,11 +784,8 @@ static bool test_termgen1()
 }
 
 /// Test spelling data generation.
-static bool test_tg_spell1()
-{
-    mkdir(".chert", 0755);
-    string dbdir = ".chert/tg_spell1";
-    Xapian::WritableDatabase db(dbdir, Xapian::DB_CREATE_OR_OVERWRITE);
+DEFINE_TESTCASE(tg_spell1, spelling) {
+    Xapian::WritableDatabase db = get_writable_database();
 
     Xapian::TermGenerator termgen;
     Xapian::Document doc;
@@ -812,8 +809,7 @@ static bool test_tg_spell1()
 }
 
 /// Regression test for bug fixed in 1.0.5 - previously this segfaulted.
-static bool test_tg_spell2()
-{
+DEFINE_TESTCASE(tg_spell2, !backend) {
     Xapian::TermGenerator termgen;
     Xapian::Document doc;
 
@@ -825,8 +821,7 @@ static bool test_tg_spell2()
     return true;
 }
 
-static bool test_tg_max_word_length1()
-{
+DEFINE_TESTCASE(tg_max_word_length1, !backend) {
     Xapian::TermGenerator termgen;
     termgen.set_stemmer(Xapian::Stem("en"));
     termgen.set_max_word_length(4);
@@ -842,8 +837,7 @@ static bool test_tg_max_word_length1()
     return true;
 }
 
-static bool test_snipgen1()
-{
+DEFINE_TESTCASE(test_snipgen1, !backend) {
     Xapian::SnippetGenerator snipgen;
     snipgen.set_context_length(3);
 
@@ -924,8 +918,7 @@ static bool test_snipgen1()
     return true;
 }
 
-static bool test_sg_first_nonword()
-{
+DEFINE_TESTCASE(test_sg_first_nonword, !backend) {
     Xapian::SnippetGenerator snipgen;
     snipgen.set_context_length(3);
 
@@ -958,8 +951,7 @@ static bool test_sg_first_nonword()
     return true;
 }
 
-static bool test_sg_cjk_punctuation()
-{
+DEFINE_TESTCASE(test_sg_cjk_punctuation, !backend) {
     Xapian::SnippetGenerator snipgen;
     snipgen.set_context_length(3);
     Xapian::Stem stemmer("en");
@@ -979,8 +971,7 @@ static bool test_sg_cjk_punctuation()
     return true;
 }
 
-static bool test_sg_cjk_ngrams()
-{
+DEFINE_TESTCASE(test_sg_cjk_ngrams, !backend) {
     Xapian::SnippetGenerator snipgen;
     snipgen.set_context_length(3);
     Xapian::Stem stemmer("en");
@@ -1003,8 +994,7 @@ static bool test_sg_cjk_ngrams()
     return true;
 }
 
-static bool test_sg_stem()
-{
+DEFINE_TESTCASE(test_sg_stem, !backend) {
     Xapian::SnippetGenerator snipgen;
     snipgen.set_context_length(3);
     Xapian::Stem stemmer("en");
@@ -1035,8 +1025,7 @@ static bool test_sg_stem()
     return true;
 }
 
-static bool test_sg_match_punctuation()
-{
+DEFINE_TESTCASE(test_sg_match_punctuation, !backend) {
     Xapian::SnippetGenerator snipgen;
     snipgen.set_context_length(3);
     Xapian::Stem stemmer("en");
@@ -1065,28 +1054,4 @@ static bool test_sg_match_punctuation()
 				       "epsilon zeta eta");
 
     return true;
-}
-
-/// Test cases for the TermGenerator.
-static const test_desc tests[] = {
-    TESTCASE(termgen1),
-    TESTCASE(tg_spell1),
-    TESTCASE(tg_spell2),
-    TESTCASE(tg_max_word_length1),
-    TESTCASE(snipgen1),
-    TESTCASE(sg_first_nonword),
-    TESTCASE(sg_stem),
-    TESTCASE(sg_cjk_punctuation),
-    TESTCASE(sg_cjk_ngrams),
-    TESTCASE(sg_match_punctuation),
-    END_OF_TESTCASES
-};
-
-int main(int argc, char **argv)
-try {
-    test_driver::parse_command_line(argc, argv);
-    return test_driver::run(tests);
-} catch (const char * e) {
-    cout << e << endl;
-    return 1;
 }

@@ -155,6 +155,7 @@ CONSTANT(int, Xapian, DB_DANGEROUS);
 CONSTANT(int, Xapian, DB_NO_TERMLIST);
 CONSTANT(int, Xapian, DB_BACKEND_CHERT);
 CONSTANT(int, Xapian, DB_BACKEND_GLASS);
+CONSTANT(int, Xapian, DB_BACKEND_INMEMORY);
 CONSTANT(int, Xapian, DB_BACKEND_STUB);
 CONSTANT(int, Xapian, DB_RETRY_LOCK);
 CONSTANT(int, Xapian, DBCHECK_SHORT_TREE);
@@ -345,13 +346,18 @@ SUBCLASSABLE(Xapian, KeyMaker)
 SUBCLASSABLE(Xapian, FieldProcessor)
 // Suppress warning that Xapian::Internal::opt_intrusive_base is unknown.
 %warnfilter(SWIGWARN_TYPE_UNDEFINED_CLASS) Xapian::Stopper;
+SUBCLASSABLE(Xapian, RangeProcessor)
 SUBCLASSABLE(Xapian, Stopper)
 SUBCLASSABLE(Xapian, ValueRangeProcessor)
 // Suppress warning that Xapian::Internal::opt_intrusive_base is unknown.
+%warnfilter(SWIGWARN_TYPE_UNDEFINED_CLASS) Xapian::RangeProcessor;
 %warnfilter(SWIGWARN_TYPE_UNDEFINED_CLASS) Xapian::ValueRangeProcessor;
 %warnfilter(SWIGWARN_TYPE_UNDEFINED_CLASS) Xapian::FieldProcessor;
 STANDARD_IGNORES(Xapian, QueryParser)
 %ignore Xapian::QueryParser::QueryParser(const QueryParser &);
+CONSTANT(int, Xapian, RP_SUFFIX);
+CONSTANT(int, Xapian, RP_REPEATED);
+CONSTANT(int, Xapian, RP_DATE_PREFER_MDY);
 %include <xapian/queryparser.h>
 
 %include <xapian/valuesetmatchdecider.h>
@@ -384,6 +390,8 @@ SUBCLASSABLE(Xapian, Compactor)
 %include <xapian/compactor.h>
 
 SUBCLASSABLE(Xapian, PostingSource)
+// Suppress warning that Xapian::Internal::opt_intrusive_base is unknown.
+%warnfilter(SWIGWARN_TYPE_UNDEFINED_CLASS) Xapian::PostingSource;
 SUBCLASSABLE(Xapian, ValuePostingSource)
 SUBCLASSABLE(Xapian, ValueWeightPostingSource)
 %ignore Xapian::PostingSource::register_matcher_;
@@ -421,12 +429,13 @@ STANDARD_IGNORES(Xapian, WritableDatabase)
 
 #else
 
-%rename("inmemory_open") Xapian::InMemory::open;
-
 #ifdef XAPIAN_BINDINGS_SKIP_DEPRECATED_DB_FACTORIES
+%ignore Xapian::InMemory::open;
 %ignore Xapian::Chert::open;
 %ignore Xapian::Auto::open_stub;
 #else
+
+%rename("inmemory_open") Xapian::InMemory::open;
 
 /* SWIG Tcl wrappers don't call destructors for classes returned by factory
  * functions, so we don't wrap them so users are forced to use the

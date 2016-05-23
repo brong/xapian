@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 dnl NB When updating the version for a release, update LIBRARY_VERSION_INFO
 dnl below too.
-AC_INIT([xapian-core], [1.3.4], [https://xapian.org/bugs])
+AC_INIT([xapian-core], [1.3.6], [https://xapian.org/bugs])
 dnl See HACKING document for details of the reasons for required versions.
 AC_PREREQ([2.64])
 dnl Extract from the libtool info manual:
@@ -36,7 +36,8 @@ dnl 3:0:0 1.3.2 Enquire::get_eset() overload -> default parameter
 dnl 4:0:0 1.3.3 Database::allterms_begin() overload -> default parameter
 dnl 5:0:0 1.3.4 DB compaction and checking changes, etc
 dnl 6:0:0 1.3.5 DatabaseReplica changes
-LIBRARY_VERSION_INFO=6:0:0
+dnl 7:0:0 1.3.6 RangeProcessor added
+LIBRARY_VERSION_INFO=7:0:0
 AC_SUBST([LIBRARY_VERSION_INFO])
 
 LIBRARY_VERSION_SUFFIX=-1.3
@@ -399,8 +400,19 @@ esac
 dnl We use timer_create() if available to implement a search time limit.
 SAVE_LIBS=$LIBS
 AC_SEARCH_LIBS([timer_create], [rt],
-    [XAPIAN_LIBS="$LIBS $XAPIAN_LIBS"
-    AC_DEFINE([HAVE_TIMER_CREATE], [1], [Define to 1 if you have the 'timer_create' function.])])
+	       [
+    AC_MSG_CHECKING([for timer_create() usability])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+[[#if defined _AIX || defined __GNU__
+#error timer_create known not to work
+#endif]])],
+	[AC_MSG_RESULT([yes])
+	XAPIAN_LIBS="$LIBS $XAPIAN_LIBS"
+	AC_DEFINE([HAVE_TIMER_CREATE], [1], [Define to 1 if you have the 'timer_create' function.])]
+	,
+	[AC_MSG_RESULT([no])
+    ])
+])
 LIBS=$SAVE_LIBS
 
 dnl Used by tests/soaktest/soaktest.cc
@@ -418,8 +430,7 @@ AC_TRY_COMPILE([#include <setjmp.h>],
 dnl Used by tests/harness/cputimer.cc:
 AC_CHECK_FUNCS([getrusage times sysconf])
 
-dnl Used by tests/api_replicate.cc, tests/queryparsertest.cc and
-dnl tests/termgentest.cc.
+dnl Used by tests/api_replicate.cc.
 dnl
 dnl Solaris < 10 only has putenv().
 dnl
@@ -624,7 +635,27 @@ fi
 dnl Checks for library functions.
 AC_FUNC_MEMCMP
 AC_FUNC_STRERROR_R
-AC_CHECK_DECLS([sys_errlist, _sys_errlist, sys_nerr, _sys_nerr])
+
+AC_CACHE_CHECK([for sys_errlist and sys_nerr], ac_cv_sys_errlist_and_sys_nerr, [
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]],
+[[  printf("%s", sys_errlist[sys_nerr - 1]);]])],
+  [ ac_cv_sys_errlist_and_sys_nerr=yes ],
+  [ ac_cv_sys_errlist_and_sys_nerr=no ])
+])
+if test "x$ac_cv_sys_errlist_and_sys_nerr" = "xyes" ; then
+  AC_DEFINE([HAVE_SYS_ERRLIST_AND_SYS_NERR], [1],[Define if you have 'sys_errlist' and 'sys_nerr'])
+fi
+
+AC_CACHE_CHECK([for _sys_errlist and _sys_nerr], ac_cv__sys_errlist_and__sys_nerr, [
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]],
+[[  printf("%s", _sys_errlist[_sys_nerr - 1]);]])],
+  [ ac_cv__sys_errlist_and__sys_nerr=yes ],
+  [ ac_cv__sys_errlist_and__sys_nerr=no
+  ])
+])
+if test "x$ac_cv__sys_errlist_and__sys_nerr" = "xyes" ; then
+  AC_DEFINE([HAVE__SYS_ERRLIST_AND__SYS_NERR], [1],[Define if you have '_sys_errlist' and '_sys_nerr'])
+fi
 
 dnl Check that snprintf actually works as it's meant to.
 dnl

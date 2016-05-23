@@ -1,7 +1,7 @@
 /** @file api_query.cc
  * @brief Query-related tests.
  */
-/* Copyright (C) 2008,2009,2012,2013,2015 Olly Betts
+/* Copyright (C) 2008,2009,2012,2013,2015,2016 Olly Betts
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -89,6 +89,10 @@ DEFINE_TESTCASE(overload1, !backend) {
     return true;
 }
 
+// FIXME: As of 1.3.6, we throw Xapian::UnimplementedError at an attempt
+// to use OP_NEAR or OP_PHRASE with a complex subquery.  Once we actually
+// implement this, these tests can be re-enabled.
+#if 0
 /** Regression test and feature test.
  *
  *  This threw AssertionError in 1.0.9 and earlier (bug#201) and gave valgrind
@@ -145,6 +149,7 @@ DEFINE_TESTCASE(nearsubqueries1, writable) {
 
     return true;
 }
+#endif
 
 /// Test that XOR handles all remaining subqueries running out at the same
 //  time.
@@ -452,5 +457,82 @@ DEFINE_TESTCASE(loosenear1, backend) {
 	++p;
     }
 
+    return true;
+}
+
+/// Regression test for bug fixed in 1.3.6 - this would segfault in 1.3.x.
+DEFINE_TESTCASE(complexphrase1, backend) {
+    Xapian::Database db = get_database("apitest_simpledata");
+    Xapian::Enquire enq(db);
+    TEST_EXCEPTION(Xapian::UnimplementedError,
+	Xapian::Query query(Xapian::Query::OP_PHRASE,
+		Xapian::Query("a") | Xapian::Query("b"),
+		Xapian::Query("i"));
+	enq.set_query(query);
+	(void)enq.get_mset(0, 10););
+    return true;
+}
+
+/// Regression test for bug fixed in 1.3.6 - this would segfault in 1.3.x.
+DEFINE_TESTCASE(complexnear1, backend) {
+    Xapian::Database db = get_database("apitest_simpledata");
+    Xapian::Enquire enq(db);
+    TEST_EXCEPTION(Xapian::UnimplementedError,
+	Xapian::Query query(Xapian::Query::OP_NEAR,
+		Xapian::Query("a") | Xapian::Query("b"),
+		Xapian::Query("i"));
+	enq.set_query(query);
+	(void)enq.get_mset(0, 10););
+    return true;
+}
+
+/// Check subqueries of MatchAll, MatchNothing and PostingSource are supported.
+DEFINE_TESTCASE(complexphrase2, backend) {
+    Xapian::Database db = get_database("apitest_simpledata");
+    Xapian::Enquire enq(db);
+    Xapian::ValueWeightPostingSource ps(0);
+    Xapian::Query subqs[3] = {
+	Xapian::Query(Xapian::Query::OP_PHRASE,
+	    Xapian::Query("a"),
+	    Xapian::Query(&ps)),
+	Xapian::Query(Xapian::Query::OP_PHRASE,
+	    Xapian::Query("and"),
+	    Xapian::Query::MatchAll),
+	Xapian::Query(Xapian::Query::OP_PHRASE,
+	    Xapian::Query("at"),
+	    Xapian::Query::MatchNothing)
+    };
+    Xapian::Query query(Xapian::Query::OP_OR, subqs, subqs + 3);
+    enq.set_query(query);
+    (void)enq.get_mset(0, 10);
+    return true;
+}
+
+/// Check subqueries of MatchAll, MatchNothing and PostingSource are supported.
+DEFINE_TESTCASE(complexnear2, backend) {
+    Xapian::Database db = get_database("apitest_simpledata");
+    Xapian::Enquire enq(db);
+    Xapian::ValueWeightPostingSource ps(0);
+    Xapian::Query subqs[3] = {
+	Xapian::Query(Xapian::Query::OP_NEAR,
+	    Xapian::Query("a"),
+	    Xapian::Query(&ps)),
+	Xapian::Query(Xapian::Query::OP_NEAR,
+	    Xapian::Query("and"),
+	    Xapian::Query::MatchAll),
+	Xapian::Query(Xapian::Query::OP_NEAR,
+	    Xapian::Query("at"),
+	    Xapian::Query::MatchNothing)
+    };
+    Xapian::Query query(Xapian::Query::OP_OR, subqs, subqs + 3);
+    enq.set_query(query);
+    (void)enq.get_mset(0, 10);
+    return true;
+}
+
+// Regression test for bug fixed in 1.3.6.
+DEFINE_TESTCASE(selfinit1, !backend) {
+    Xapian::Query query(query);
+    Xapian::Query query2 = query2;
     return true;
 }

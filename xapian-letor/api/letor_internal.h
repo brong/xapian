@@ -1,6 +1,7 @@
-/* ranklist.h: The ranklist -- list of feature vectors file.
- *
- * Copyright (C) 2012 Parth Gupta
+/** @file letor_internal.h
+ * @brief Internals of Xapian::Letor class
+ */
+/* Copyright (C) 2011 Parth Gupta
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -18,43 +19,35 @@
  * USA
  */
 
-#ifndef RANKLIST_H
-#define RANKLIST_H
+#ifndef XAPIAN_INCLUDED_LETOR_INTERNAL_H
+#define XAPIAN_INCLUDED_LETOR_INTERNAL_H
 
+#include "xapian-letor/letor.h"
+#include "xapian-letor/ranker.h"
 
-#include <xapian.h>
-#include <xapian/intrusive_ptr.h>
-#include <xapian/types.h>
-#include <xapian/visibility.h>
-
-#include <featurevector.h>
-
-#include <list>
 #include <map>
-#include <iostream>
 
 using namespace std;
 
-
 namespace Xapian {
 
-class FeatureVector;
-
-class XAPIAN_VISIBILITY_DEFAULT RankList {
-    
-    std::list<FeatureVector> rl;
+class Letor::Internal : public Xapian::Internal::intrusive_base {
+    friend class Letor;
+    Ranker ranker;
+    Database letor_db;
+    Query letor_query;
 
   public:
-    std::string qid;
-    RankList();
-    
-    void set_qid(std::string qid1);
 
-    void add_feature_vector(const Xapian::FeatureVector fv);//was & fv initially,check back later
+    std::map<Xapian::docid, double>  letor_score(const Xapian::MSet & mset);
 
-    void normalise();
+    void letor_learn_model(int svm_type, int kernel_type);
+
+    void prepare_training_file(const std::string & query_file, const std::string & qrel_file, Xapian::doccount msetsize);
+
 
 };
 
 }
-#endif /* RANKLIST_H */
+
+#endif // XAPIAN_INCLUDED_LETOR_INTERNAL_H
