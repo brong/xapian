@@ -189,14 +189,6 @@ MSet::convert_to_percent(double wt) const
     RETURN(internal->convert_to_percent_internal(wt));
 }
 
-int
-MSet::convert_to_percent(const MSetIterator & it) const
-{
-    LOGCALL(API, int, "Xapian::MSet::convert_to_percent", it);
-    Assert(internal.get() != 0);
-    RETURN(internal->convert_to_percent_internal(it.get_weight()));
-}
-
 Xapian::doccount
 MSet::get_termfreq(const string &tname) const
 {
@@ -427,108 +419,6 @@ MSet::Internal::read_docs() const
     requested_docs.clear();
 }
 
-// Methods for Xapian::ESet
-
-ESet::ESet() : internal(new Internal) { }
-
-ESet::~ESet()
-{
-}
-
-ESet::ESet(const ESet & other) : internal(other.internal)
-{
-}
-
-void
-ESet::operator=(const ESet &other)
-{
-    internal = other.internal;
-}
-
-Xapian::termcount
-ESet::get_ebound() const
-{
-    return internal->ebound;
-}
-
-Xapian::termcount
-ESet::size() const
-{
-    return internal->items.size();
-}
-
-bool
-ESet::empty() const
-{
-    return internal->items.empty();
-}
-
-void
-ESet::swap(ESet & other)
-{
-    std::swap(internal, other.internal);
-}
-
-ESetIterator
-ESet::begin() const
-{
-    return ESetIterator(0, *this);
-}
-
-ESetIterator
-ESet::end() const
-{
-    Assert(internal.get() != 0);
-    return ESetIterator(internal->items.size(), *this);
-}
-
-ESetIterator
-ESet::operator[](Xapian::termcount i) const
-{
-    // Don't test 0 <= i - that gives a compiler warning if i is unsigned
-    Assert(0 < (i + 1) && i < size());
-    return ESetIterator(i, *this);
-}
-
-ESetIterator
-ESet::back() const
-{
-    Assert(!empty());
-    Assert(internal.get() != 0);
-    return ESetIterator(internal->items.size() - 1, *this);
-}
-
-string
-ESet::get_description() const
-{
-    Assert(internal.get() != 0);
-    return "Xapian::ESet(" + internal->get_description() + ")";
-}
-
-// Xapian::ESetIterator
-
-const string &
-ESetIterator::operator *() const
-{
-    Assert(eset.internal.get());
-    AssertRel(index,<,eset.internal->items.size());
-    return eset.internal->items[index].term;
-}
-
-double
-ESetIterator::get_weight() const
-{
-    Assert(eset.internal.get());
-    AssertRel(index,<,eset.internal->items.size());
-    return eset.internal->items[index].wt;
-}
-
-string
-ESetIterator::get_description() const
-{
-    return "Xapian::ESetIterator(" + str(index) + ")";
-}
-
 // MSetIterator
 
 Xapian::docid
@@ -707,6 +597,7 @@ Enquire::Internal::get_eset(Xapian::termcount maxitems,
 
     bool use_exact_termfreq(flags & Enquire::USE_EXACT_TERMFREQ);
     Xapian::ESet eset;
+    eset.internal = new Xapian::ESet::Internal;
 
     if (eweightname == "bo1") {
 	Bo1EWeight bo1eweight(db, rset.size(), use_exact_termfreq);

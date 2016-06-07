@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 
-m4_define([project_version], [1.3.6])
+m4_define([project_version], [1.3.7])
 AC_INIT([xapian-omega], project_version, [https://xapian.org/bugs])
 AC_PREREQ([2.63])
 AM_INIT_AUTOMAKE([1.11 -Wportability subdir-objects tar-ustar no-dist-gzip dist-xz])
@@ -304,7 +304,7 @@ if test no != "$with_iconv" ; then
     fi
 
     case $with_iconv in
-    bad-yes) 
+    bad-yes)
       AC_MSG_ERROR([iconv not found, but --with-iconv specified]) ;;
     bad-*)
       with_iconv=no ;;

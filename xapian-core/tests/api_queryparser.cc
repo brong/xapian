@@ -748,7 +748,7 @@ DEFINE_TESTCASE(queryparser1, !backend) {
 		flags = queryparser.FLAG_DEFAULT|queryparser.FLAG_CJK_NGRAM;
 		continue;
 	    }
-	    FAIL_TEST(string("Unknown flag code: ") + p->expect);
+	    FAIL_TEST("Unknown flag code: " << p->expect);
 	}
 	string expect, parsed;
 	if (p->expect)
@@ -824,7 +824,7 @@ DEFINE_TESTCASE(qp_default_op1, !backend) {
 		flags = queryparser.FLAG_DEFAULT|queryparser.FLAG_CJK_NGRAM;
 		continue;
 	    }
-	    FAIL_TEST(string("Unknown flag code: ") + p->expect);
+	    FAIL_TEST("Unknown flag code: " << p->expect);
 	}
 	string expect, parsed;
 	if (p->expect)
